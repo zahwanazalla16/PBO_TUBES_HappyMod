@@ -1,8 +1,11 @@
 package com.project.app.facade;
 
 import com.project.app.model.Habit;
+import com.project.app.observer.IObserver;
 import com.project.app.repository.HabitRepository;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 public class HabitFacade {
@@ -13,9 +16,52 @@ public class HabitFacade {
         this.repository = new HabitRepository();
     }
 
-    public boolean addHabit(String name, String description) {
-        Habit habit = new Habit(name, description);
-        return repository.createHabit(habit);
+    private List<IObserver> observers = new ArrayList<>();
+
+    public void addObserver(IObserver observer) {
+        observers.add(observer);
+    }
+
+    private void notifyObservers() {
+        for (IObserver observer : observers) {
+            observer.onDataChanged(); // Kabari semua pengamat!
+        }
+    }
+
+
+    public boolean addHabit(String name) {
+        Habit habit = new Habit(name); 
+        boolean isSuccess = repository.createHabit(habit);
+        
+        // JIKA BERHASIL SIMPAN -> KABARI OBSERVER (GUI)
+        if (isSuccess) {
+            notifyObservers();
+        }
+        
+        return isSuccess;
+    }
+
+    public boolean updateHabit(int id, String name) {
+        Habit habit = new Habit(id, name); 
+        boolean isSuccess = repository.updateHabit(habit);
+        
+        // JIKA BERHASIL UPDATE -> KABARI OBSERVER (GUI)
+        if (isSuccess) {
+            notifyObservers();
+        }
+        
+        return isSuccess;
+    }
+
+    public boolean deleteHabit(int id) {
+        boolean isSuccess = repository.deleteHabit(id);
+        
+        // JIKA BERHASIL HAPUS -> KABARI OBSERVER (GUI)
+        if (isSuccess) {
+            notifyObservers();
+        }
+        
+        return isSuccess;
     }
 
     public List<Habit> getHabits() {
@@ -26,12 +72,16 @@ public class HabitFacade {
         return repository.getHabitById(id);
     }
 
-    public boolean updateHabit(int id, String name, String description) {
-        Habit habit = new Habit(id, name, description);
-        return repository.updateHabit(habit);
+
+    // --- FITUR BARU: TRACKING HARIAN (Untuk GUI Checkbox) ---
+    
+    // Mengecek apakah habit X di tanggal Y sudah diceklis?
+    public boolean getHabitStatus(int habitId, LocalDate date) {
+        return repository.isHabitDone(habitId, date);
     }
 
-    public boolean deleteHabit(int id) {
-        return repository.deleteHabit(id);
+    // Mengubah status ceklis (True/False)
+    public void updateHabitStatus(int habitId, LocalDate date, boolean isCompleted) {
+        repository.setHabitStatus(habitId, date, isCompleted);
     }
 }
