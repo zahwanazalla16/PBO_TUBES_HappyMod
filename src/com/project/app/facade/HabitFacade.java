@@ -24,7 +24,7 @@ public class HabitFacade {
 
     private void notifyObservers() {
         for (IObserver observer : observers) {
-            observer.onDataChanged(); // Kabari semua pengamat!
+            observer.onDataChanged();
         }
     }
 
@@ -33,7 +33,6 @@ public class HabitFacade {
         Habit habit = new Habit(name); 
         boolean isSuccess = repository.createHabit(habit);
         
-        // JIKA BERHASIL SIMPAN -> KABARI OBSERVER (GUI)
         if (isSuccess) {
             notifyObservers();
         }
@@ -45,7 +44,6 @@ public class HabitFacade {
         Habit habit = new Habit(id, name); 
         boolean isSuccess = repository.updateHabit(habit);
         
-        // JIKA BERHASIL UPDATE -> KABARI OBSERVER (GUI)
         if (isSuccess) {
             notifyObservers();
         }
@@ -56,7 +54,6 @@ public class HabitFacade {
     public boolean deleteHabit(int id) {
         boolean isSuccess = repository.deleteHabit(id);
         
-        // JIKA BERHASIL HAPUS -> KABARI OBSERVER (GUI)
         if (isSuccess) {
             notifyObservers();
         }
@@ -71,7 +68,6 @@ public class HabitFacade {
     public Habit getHabit(int id) {
         return repository.getHabitById(id);
     }
-
 
     // --- FITUR BARU: TRACKING HARIAN (Untuk GUI Checkbox) ---
     

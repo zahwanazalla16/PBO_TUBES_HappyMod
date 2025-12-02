@@ -9,7 +9,7 @@ public class DatabaseConnection {
 
     private final String URL = "jdbc:postgresql://localhost:5432/mood_habit_analysis";
     private final String USER = "postgres";
-    private final String PASSWORD = "postgres";
+    private final String PASSWORD = "postgre";
 
     private DatabaseConnection() {
         try {
@@ -36,3 +36,4 @@ public class DatabaseConnection {
         return connection;
     }
 }
+

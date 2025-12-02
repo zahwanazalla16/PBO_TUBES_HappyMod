@@ -22,5 +22,5 @@ public class Habit {
     public void setName(String name) { this.name = name; }
     
     @Override
-    public String toString() { return name; } // Penting untuk GUI
+    public String toString() { return name; }
 }
