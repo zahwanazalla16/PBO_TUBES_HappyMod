@@ -1,7 +1,8 @@
-package com.project.app;
+package app;
 
-import com.project.app.view.MainDashboard; // Pastikan import Dashboard baru
 import javax.swing.SwingUtilities;
+
+import app.view.MainDashboard;
 
 public class Main {
     public static void main(String[] args) {

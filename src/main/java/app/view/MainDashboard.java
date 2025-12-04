@@ -1,10 +1,12 @@
-package com.project.app.view;
-
-import com.project.app.facade.MoodFacade;
-import com.project.app.model.Mood;
+package app.view;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+
+import app.facade.MoodFacade;
+import app.model.Mood;
+import app.observer.IObserver;
+
 import java.awt.*;
 import java.awt.geom.Ellipse2D;
 import java.time.DayOfWeek;
@@ -12,7 +14,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 
-public class MainDashboard extends JFrame {
+public class MainDashboard extends JFrame implements IObserver {
 
     private final MoodFacade moodFacade = new MoodFacade();
     private LocalDate weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
@@ -25,6 +27,13 @@ public class MainDashboard extends JFrame {
     private static final Color GRAPH_POINT = new Color(220, 53, 69); // Titik Merah
     private static final Color GRID_COLOR = new Color(230, 230, 230); // Abu-abu muda
 
+
+    @Override
+    public void onDataChanged() {
+        // Gambar ulang grafik saat data Mood berubah di Tracker!
+        repaint(); 
+    }
+
     public MainDashboard() {
         setTitle("MoodFlow • Dashboard");
         setSize(1000, 700);
@@ -36,6 +45,8 @@ public class MainDashboard extends JFrame {
         add(createHeader(), BorderLayout.NORTH);
         add(new MoodGraphPanel(), BorderLayout.CENTER);
         add(createBottomPanel(), BorderLayout.SOUTH);
+
+        moodFacade.addObserver(this);
     }
 
     private JPanel createHeader() {

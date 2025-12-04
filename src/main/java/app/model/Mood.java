@@ -1,4 +1,4 @@
-package com.project.app.model;
+package app.model;
 
 public class Mood {
     private int id;

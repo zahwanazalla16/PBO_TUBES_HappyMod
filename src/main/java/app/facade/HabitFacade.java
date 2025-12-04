@@ -1,12 +1,12 @@
-package com.project.app.facade;
-
-import com.project.app.model.Habit;
-import com.project.app.observer.IObserver;
-import com.project.app.repository.HabitRepository;
+package app.facade;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+
+import app.model.Habit;
+import app.observer.IObserver;
+import app.repository.HabitRepository;
 
 public class HabitFacade {
 
@@ -14,6 +14,10 @@ public class HabitFacade {
 
     public HabitFacade() {
         this.repository = new HabitRepository();
+    }
+
+    public HabitFacade(HabitRepository repository) {
+        this.repository = repository;
     }
 
     private List<IObserver> observers = new ArrayList<>();
@@ -30,6 +34,10 @@ public class HabitFacade {
 
 
     public boolean addHabit(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return false;
+        }
+
         Habit habit = new Habit(name); 
         boolean isSuccess = repository.createHabit(habit);
         

@@ -1,10 +1,4 @@
-package com.project.app.view;
-
-import com.project.app.facade.HabitFacade;
-import com.project.app.facade.MoodFacade;
-import com.project.app.model.Habit;
-import com.project.app.model.Mood;
-import com.project.app.observer.IObserver;
+package app.view;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -14,6 +8,13 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
+
+import app.facade.HabitFacade;
+import app.facade.MoodFacade;
+import app.model.Habit;
+import app.model.Mood;
+import app.observer.IObserver;
+
 import java.awt.*;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;

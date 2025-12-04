@@ -1,0 +1,224 @@
+package app.facade;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
+
+// Import Package Aplikasi
+import app.model.Habit;
+import app.observer.IObserver;
+import app.repository.HabitRepository;
+
+// Import Java Utilities
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+
+// Import JUnit & Mockito Static
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+@DisplayName("Test Lengkap HabitFacade (CRUD + Tracking + Observer)")
+class HabitFacadeTest {
+
+    // 1. Siapkan Objek Mock (Palsu)
+    private HabitRepository repositoryMock;
+    private IObserver observerMock;
+
+    // 2. Siapkan Objek Asli yang mau dites
+    private HabitFacade habitFacade;
+
+    @BeforeEach
+    void setUp() {
+        // Inisialisasi Mock
+        repositoryMock = mock(HabitRepository.class);
+        observerMock = mock(IObserver.class);
+
+        // Masukkan Repository Mock ke dalam Facade (Constructor Injection)
+        habitFacade = new HabitFacade(repositoryMock);
+
+        // Daftarkan Observer Mock agar kita bisa cek notifikasi
+        habitFacade.addObserver(observerMock);
+    }
+
+    // ==========================================
+    // 1. TEST FITUR ADD HABIT
+    // ==========================================
+
+    @Test
+    @DisplayName("ADD SUKSES: Data valid & tersimpan di DB -> Observer harus bunyi")
+    void testAddHabit_Success() {
+        // SKENARIO: Repository berhasil simpan (return true)
+        when(repositoryMock.createHabit(any(Habit.class))).thenReturn(true);
+
+        // EKSEKUSI
+        boolean result = habitFacade.addHabit("Belajar Coding");
+
+        // VERIFIKASI
+        assertTrue(result, "Seharusnya return true");
+        verify(repositoryMock, times(1)).createHabit(any(Habit.class)); // Pastikan repo dipanggil
+        verify(observerMock, times(1)).onDataChanged(); // Observer WAJIB dipanggil
+    }
+
+    @Test
+    @DisplayName("ADD GAGAL: Nama kosong (Validasi Bisnis) -> Repo & Observer jangan disentuh")
+    void testAddHabit_Fail_EmptyName() {
+        // EKSEKUSI: Input nama kosong
+        boolean result = habitFacade.addHabit(""); 
+
+        // VERIFIKASI
+        assertFalse(result, "Seharusnya return false karena nama kosong");
+        verify(repositoryMock, never()).createHabit(any()); // Repo tidak boleh dipanggil
+        verify(observerMock, never()).onDataChanged();      // Observer tidak boleh bunyi
+    }
+
+    @Test
+    @DisplayName("ADD GAGAL: Database Error -> Observer jangan bunyi")
+    void testAddHabit_Fail_DatabaseError() {
+        // SKENARIO: Repository gagal simpan (misal koneksi putus)
+        when(repositoryMock.createHabit(any(Habit.class))).thenReturn(false);
+
+        // EKSEKUSI
+        boolean result = habitFacade.addHabit("Lari Pagi");
+
+        // VERIFIKASI
+        assertFalse(result, "Seharusnya false karena DB error");
+        verify(observerMock, never()).onDataChanged(); // Kalau gagal simpan, UI jangan diupdate
+    }
+
+    // ==========================================
+    // 2. TEST FITUR UPDATE HABIT
+    // ==========================================
+
+    @Test
+    @DisplayName("UPDATE SUKSES: Data valid -> Observer harus bunyi")
+    void testUpdateHabit_Success() {
+        // SKENARIO: Repo berhasil update
+        when(repositoryMock.updateHabit(any(Habit.class))).thenReturn(true);
+
+        // EKSEKUSI
+        boolean result = habitFacade.updateHabit(1, "Belajar JUnit");
+
+        // VERIFIKASI
+        assertTrue(result);
+        verify(repositoryMock).updateHabit(any(Habit.class));
+        verify(observerMock, times(1)).onDataChanged(); // UI harus refresh
+    }
+
+    @Test
+    @DisplayName("UPDATE GAGAL: ID tidak ditemukan / DB Error -> Observer diam")
+    void testUpdateHabit_Fail() {
+        // SKENARIO: Repo gagal update
+        when(repositoryMock.updateHabit(any(Habit.class))).thenReturn(false);
+
+        // EKSEKUSI
+        boolean result = habitFacade.updateHabit(99, "Gak Bakal Keupdate");
+
+        // VERIFIKASI
+        assertFalse(result);
+        verify(observerMock, never()).onDataChanged(); // UI jangan refresh
+    }
+
+    // ==========================================
+    // 3. TEST FITUR DELETE HABIT
+    // ==========================================
+
+    @Test
+    @DisplayName("DELETE SUKSES: ID ada -> Observer harus bunyi")
+    void testDeleteHabit_Success() {
+        // SKENARIO: Repo berhasil delete
+        when(repositoryMock.deleteHabit(1)).thenReturn(true);
+
+        // EKSEKUSI
+        boolean result = habitFacade.deleteHabit(1);
+
+        // VERIFIKASI
+        assertTrue(result);
+        verify(observerMock, times(1)).onDataChanged();
+    }
+
+    @Test
+    @DisplayName("DELETE GAGAL: ID salah / DB Error -> Observer diam")
+    void testDeleteHabit_Fail() {
+        // SKENARIO: Repo gagal delete
+        when(repositoryMock.deleteHabit(1)).thenReturn(false);
+
+        // EKSEKUSI
+        boolean result = habitFacade.deleteHabit(1);
+
+        // VERIFIKASI
+        assertFalse(result);
+        verify(observerMock, never()).onDataChanged();
+    }
+
+    // ==========================================
+    // 4. TEST FITUR GET (READ DATA)
+    // ==========================================
+
+    @Test
+    @DisplayName("GET ALL: Mengambil semua data")
+    void testGetHabits() {
+        // Setup data palsu
+        List<Habit> dummyList = new ArrayList<>();
+        dummyList.add(new Habit(1, "Test 1"));
+        dummyList.add(new Habit(2, "Test 2"));
+
+        when(repositoryMock.getAllHabits()).thenReturn(dummyList);
+
+        // EKSEKUSI
+        List<Habit> result = habitFacade.getHabits();
+
+        // VERIFIKASI
+        assertEquals(2, result.size());
+        assertEquals("Test 1", result.get(0).getName());
+    }
+
+    @Test
+    @DisplayName("GET BY ID: Data ditemukan vs Tidak ditemukan")
+    void testGetHabitById() {
+        // Skenario 1: Ketemu
+        Habit h = new Habit(10, "Found Me");
+        when(repositoryMock.getHabitById(10)).thenReturn(h);
+        
+        Habit resultFound = habitFacade.getHabit(10);
+        assertNotNull(resultFound);
+        assertEquals("Found Me", resultFound.getName());
+
+        // Skenario 2: Tidak Ketemu (Null)
+        when(repositoryMock.getHabitById(99)).thenReturn(null);
+        
+        Habit resultNull = habitFacade.getHabit(99);
+        assertNull(resultNull);
+    }
+
+    // ==========================================
+    // 5. TEST FITUR TRACKING (CHECKBOX)
+    // ==========================================
+
+    @Test
+    @DisplayName("TRACKING: Cek Status Habit (True/False)")
+    void testGetHabitStatus() {
+        LocalDate today = LocalDate.now();
+
+        // Skenario: Sudah diceklis
+        when(repositoryMock.isHabitDone(1, today)).thenReturn(true);
+        assertTrue(habitFacade.getHabitStatus(1, today));
+
+        // Skenario: Belum diceklis
+        when(repositoryMock.isHabitDone(1, today)).thenReturn(false);
+        assertFalse(habitFacade.getHabitStatus(1, today));
+    }
+
+    @Test
+    @DisplayName("TRACKING: Update Status (Centang/Uncentang)")
+    void testUpdateHabitStatus() {
+        LocalDate today = LocalDate.now();
+
+        // EKSEKUSI: Centang (True)
+        habitFacade.updateHabitStatus(1, today, true);
+
+        // VERIFIKASI: Pastikan method di repo dipanggil dengan parameter yg benar
+        verify(repositoryMock).setHabitStatus(1, today, true);
+    }
+}

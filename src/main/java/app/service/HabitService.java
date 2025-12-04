@@ -1,4 +1,4 @@
-package com.project.app.service;
+package app.service;
 
 public class HabitService {
     

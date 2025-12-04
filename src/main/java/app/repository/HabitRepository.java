@@ -1,11 +1,12 @@
-package com.project.app.repository;
+package app.repository;
 
-import com.project.app.config.DatabaseConnection;
-import com.project.app.model.Habit;
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+
+import app.config.DatabaseConnection;
+import app.model.Habit;
 
 public class HabitRepository {
 
@@ -104,28 +105,26 @@ public class HabitRepository {
             stmt.setInt(1, habitId);
             stmt.setDate(2, Date.valueOf(date));
             ResultSet rs = stmt.executeQuery();
-            return rs.next(); // Jika ada datanya, berarti true (done)
+            return rs.next(); // true jika ada baris
         } catch (SQLException e) {
             e.printStackTrace();
         }
         return false;
     }
 
+    // Toggle: Jika status true -> INSERT. Jika false -> DELETE.
     public void setHabitStatus(int habitId, LocalDate date, boolean status) {
         if (status) {
-            // INSERT (Jika diceklis)
-            // Menggunakan NOT EXISTS agar tidak error jika diklik berkali-kali (Duplicate prevention)
-            String sql = "INSERT INTO habit_logs (habit_id, date) SELECT ?, ? " +
-                         "WHERE NOT EXISTS (SELECT 1 FROM habit_logs WHERE habit_id = ? AND date = ?)";
+            // INSERT (Tandai Selesai)
+            // Pakai "INSERT ... ON CONFLICT DO NOTHING" agar tidak error kalau diklik double
+            String sql = "INSERT INTO habit_logs (habit_id, date) VALUES (?, ?) ON CONFLICT DO NOTHING";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, habitId);
                 stmt.setDate(2, Date.valueOf(date));
-                stmt.setInt(3, habitId);
-                stmt.setDate(4, Date.valueOf(date));
                 stmt.executeUpdate();
             } catch (SQLException e) { e.printStackTrace(); }
         } else {
-            // DELETE (Jika di-unceklis)
+            // DELETE (Hapus Tanda Selesai / Unchecklist)
             String sql = "DELETE FROM habit_logs WHERE habit_id = ? AND date = ?";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, habitId);

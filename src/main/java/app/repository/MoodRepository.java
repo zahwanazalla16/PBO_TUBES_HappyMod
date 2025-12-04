@@ -1,12 +1,12 @@
-package com.project.app.repository;
-
-import com.project.app.config.DatabaseConnection;
-import com.project.app.model.Mood;
+package app.repository;
 
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+
+import app.config.DatabaseConnection;
+import app.model.Mood;
 
 public class MoodRepository {
 
