@@ -10,7 +10,6 @@ import app.model.Mood;
 
 public class MoodRepository {
 
-    // 1. Setup Logger
     private static final Logger LOGGER = Logger.getLogger(MoodRepository.class.getName());
     private Connection conn;
 
@@ -19,13 +18,11 @@ public class MoodRepository {
     }
 
     public Mood getMoodByDate(LocalDate date) {
-        // [FIX SONARQUBE]: Ganti SELECT * dengan nama kolom eksplisit
         String sql = "SELECT id, mood_value, date FROM mood WHERE date = ?";
         
-        // [FIX SONARQUBE]: Gunakan try-with-resources untuk PreparedStatement
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setDate(1, Date.valueOf(date));
-            try (ResultSet rs = stmt.executeQuery()) { // ResultSet juga sebaiknya di-close
+            try (ResultSet rs = stmt.executeQuery()) { 
                 if (rs.next()) {
                     return new Mood(rs.getInt("id"), rs.getInt("mood_value"), rs.getString("date"));
                 }
@@ -41,14 +38,11 @@ public class MoodRepository {
         String insertSql = "INSERT INTO mood (mood_value, date) VALUES (?, ?)";
 
         try {
-            // 1. Hapus data lama (jika ada)
-            // [FIX SONARQUBE]: Gunakan try-with-resources
             try (PreparedStatement delStmt = conn.prepareStatement(deleteSql)) {
                 delStmt.setDate(1, Date.valueOf(date));
                 delStmt.executeUpdate();
             }
 
-            // 2. Insert baru (hanya jika value valid > 0)
             if (moodValue > 0) {
                 try (PreparedStatement insStmt = conn.prepareStatement(insertSql)) {
                     insStmt.setInt(1, moodValue);

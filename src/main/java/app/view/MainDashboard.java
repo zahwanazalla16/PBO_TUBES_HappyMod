@@ -17,7 +17,6 @@ import javax.swing.border.EmptyBorder;
 
 public class MainDashboard extends JFrame {
 
-    // [FIX 1] Tambahkan 'transient' agar aman saat serialisasi (meski jarang dipakai di desktop app)
     private final transient MoodFacade moodFacade = new MoodFacade();
     private final transient AnalysisService analysisService = new AnalysisService();
     
@@ -36,7 +35,7 @@ public class MainDashboard extends JFrame {
     private static final Color GRID_COLOR = new Color(230, 230, 230);
     private static final Color ACCENT_BLUE = new Color(13, 110, 253);
 
-    // [FIX 2] Konstanta untuk Font agar tidak duplikasi string
+
     private static final String FONT_POPPINS = "Poppins";
 
     public MainDashboard() {
@@ -59,7 +58,6 @@ public class MainDashboard extends JFrame {
         add(createBottomPanel(), BorderLayout.SOUTH);
         add(createAnalysisPanel(), BorderLayout.EAST);
         
-        // [FIX 3] Hapus 'this::' jika memicu warning, atau biarkan jika sonarqube meminta method reference
         SwingUtilities.invokeLater(this::loadRandomAnalyses);
     }
 
@@ -69,7 +67,6 @@ public class MainDashboard extends JFrame {
         banner.setBorder(new EmptyBorder(15, 0, 15, 0));
         
         JLabel lblDashboard = new JLabel("DASHBOARD", SwingConstants.CENTER);
-        // [FIX 2] Gunakan konstanta font
         lblDashboard.setFont(new Font(FONT_POPPINS, Font.BOLD, 48)); 
         lblDashboard.setForeground(Color.WHITE); 
         
@@ -111,7 +108,6 @@ public class MainDashboard extends JFrame {
         btnOpenTracker.setBorder(new EmptyBorder(15, 30, 15, 30));
         btnOpenTracker.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        // [FIX 3] Hapus kurung kurawal yang tidak perlu di lambda
         btnOpenTracker.addActionListener(e -> SwingUtilities.invokeLater(() -> {
             WeeklyTrackerView tracker = new WeeklyTrackerView();
             tracker.setVisible(true);
@@ -166,8 +162,7 @@ public class MainDashboard extends JFrame {
         JScrollPane scrollPane = new JScrollPane(analysisContentPanel);
         scrollPane.setBorder(null);
         scrollPane.setBackground(BG_MAIN);
-        
-        // [FIX 4] Gunakan ScrollPaneConstants secara static access
+
         scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
         scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
@@ -225,8 +220,6 @@ public class MainDashboard extends JFrame {
             int w = getWidth();
             int h = getHeight();
             int padding = 60;
-            // [FIX 5] Cast ke double untuk menghindari integer division yang tidak presisi, walau di sini int cukup
-            // Tapi untuk amannya dan menghilangkan warning:
             double graphW = (double) w - (2 * padding);
             double graphH = (double) h - (2 * padding);
 
@@ -237,7 +230,6 @@ public class MainDashboard extends JFrame {
 
             String[] emojis = {"", "😭", "😞", "😐", "😊", "😄"};
             for (int i = 1; i <= 5; i++) {
-                // [FIX 5] Cast hasil kalkulasi kembali ke int
                 int y = (h - padding) - (int)((i * graphH) / 6.0);
                 g2.setColor(GRID_COLOR);
                 g2.setStroke(new BasicStroke(1));

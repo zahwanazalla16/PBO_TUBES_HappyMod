@@ -12,7 +12,6 @@ import app.model.Habit;
 
 public class HabitRepository {
 
-    // 1. Setup Logger
     private static final Logger LOGGER = Logger.getLogger(HabitRepository.class.getName());
     private final Connection conn;
 
@@ -20,7 +19,6 @@ public class HabitRepository {
         conn = DatabaseConnection.getInstance().getConnection();
     }
 
-    // --- CREATE ---
     public boolean createHabit(Habit habit) {
         String sql = "INSERT INTO habits (name) VALUES (?)";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -33,8 +31,6 @@ public class HabitRepository {
         }
     }
 
-    // --- READ (Single) ---
-    // [FIX SONARQUBE]: Ganti SELECT * dengan nama kolom eksplisit
     public Habit getHabitById(int id) {
         String sql = "SELECT id, name FROM habits WHERE id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -49,8 +45,6 @@ public class HabitRepository {
         return null;
     }
 
-    // --- READ (All) ---
-    // [FIX SONARQUBE]: Ganti SELECT * dengan nama kolom eksplisit
     public List<Habit> getAllHabits() {
         List<Habit> habits = new ArrayList<>();
         String sql = "SELECT id, name FROM habits ORDER BY id ASC";
@@ -66,7 +60,6 @@ public class HabitRepository {
         return habits;
     }
 
-    // --- DELETE ---
     public boolean deleteHabit(int id) {
         String sql = "DELETE FROM habits WHERE id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -79,9 +72,7 @@ public class HabitRepository {
         }
     }
 
-    // --- TRACKING LOGS ---
     public boolean isHabitDone(int habitId, LocalDate date) {
-        // SELECT 1 lebih efisien daripada SELECT * untuk cek keberadaan data
         String sql = "SELECT 1 FROM habit_logs WHERE habit_id = ? AND date = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, habitId);
@@ -96,7 +87,6 @@ public class HabitRepository {
 
     public boolean setHabitStatus(int habitId, LocalDate date, boolean status) {
         if (status) {
-            // INSERT (Tandai Selesai)
             String sql = "INSERT INTO habit_logs (habit_id, date) VALUES (?, ?) ON CONFLICT DO NOTHING";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, habitId);
@@ -108,7 +98,6 @@ public class HabitRepository {
                 return false; 
             }
         } else {
-            // DELETE (Hapus Tanda Selesai)
             String sql = "DELETE FROM habit_logs WHERE habit_id = ? AND date = ?";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, habitId);

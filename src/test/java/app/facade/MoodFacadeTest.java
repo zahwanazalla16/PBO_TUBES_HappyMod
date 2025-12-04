@@ -127,15 +127,11 @@ class MoodFacadeTest {
         // 2. Lakukan Aksi Save Mood
         moodFacade.saveMood(5, date); 
         
-        // 3. Cek LinkedList
-        // PERBAIKAN DISINI: Gunakan Interface List, bukan LinkedList
         List<String> log = moodFacade.getActivityLog();
         
         // Validasi Ukuran
         assertEquals(1, log.size(), "Log harusnya berisi 1 item");
         
-        // Validasi Konten
-        // PERBAIKAN DISINI: List tidak punya .getLast(), pakai .get(size - 1)
         String lastEntry = log.get(log.size() - 1);
 
         assertTrue(lastEntry.contains("Input Mood"), "Isi log harus mengandung 'Input Mood'");
@@ -162,7 +158,6 @@ class MoodFacadeTest {
         
         assertNotNull(result2);
         
-        // POIN PENTING: Verify tetap times(1). 
         // Artinya panggilan kedua murni diambil dari Memory (HashMap).
         verify(repoMock, times(1)).getMoodByDate(testDate);
     }

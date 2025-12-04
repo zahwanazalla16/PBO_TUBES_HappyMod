@@ -44,7 +44,7 @@ public class AnalysisService {
         return analyses;
     }
 
-    // 🟢 GENERIC METHOD CORE
+    // GENERIC METHOD CORE
     private <T> String executeAnalysis(Supplier<T> dataSupplier, 
                                        Predicate<T> validator, 
                                        Function<T, String> resultFormatter) {
@@ -54,24 +54,19 @@ public class AnalysisService {
                 return resultFormatter.apply(data);
             }
         } catch (Exception e) {
-            // Sebaiknya gunakan Logger, tapi untuk sekarang printStackTrace 
-            // bisa diabaikan jika belum setup Logger di sini
             e.printStackTrace(); 
         }
         return null;
     }
 
-    // --- IMPLEMENTASI GENERIC (Fixed Warnings) ---
 
     // 1. Kasus T = Habit
     private String analyzeHabitConsistency() {
         return executeAnalysis(
-            // [FIX] Method Reference menggantikan lambda "() -> repo.get..."
             analysisRepository::getRandomHabit,
             
             Objects::nonNull,
             
-            // Lambda ini tetap butuh kurung kurawal karena > 1 baris
             habit -> {
                 LocalDate endDate = LocalDate.now();
                 LocalDate startDate = endDate.minusDays(6);
@@ -121,7 +116,6 @@ public class AnalysisService {
             
             map -> !map.isEmpty(),
             
-            // [FIX] Hapus "{ return ... }" karena isinya cuma 1 statement (stream chain)
             map -> map.entrySet().stream()
                     .max(Map.Entry.comparingByValue())
                     .map(entry -> {
@@ -141,7 +135,6 @@ public class AnalysisService {
             },
             map -> !map.isEmpty(),
             
-            // [FIX] Hapus "{ return ... }"
             map -> map.entrySet().stream()
                     .min(Map.Entry.comparingByValue())
                     .map(entry -> {
@@ -167,7 +160,6 @@ public class AnalysisService {
     // 7. Kasus T = Habit (Saran Konsistensi)
     private String generateConsistencyRecommendation() {
         return executeAnalysis(
-            // [FIX] Method Reference
             analysisRepository::getRandomHabit,
             
             Objects::nonNull,

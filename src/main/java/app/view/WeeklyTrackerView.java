@@ -269,7 +269,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         }
         columns[9] = "Action"; 
 
-        // [FIX] Menggunakan Inner Class TrackerTableModel
         tableModel = new TrackerTableModel(columns, 0);
 
         trackerTable = new JTable(tableModel);
@@ -313,7 +312,7 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         });
     }
 
-    // --- INNER CLASS: Custom Table Model (Extracted) ---
+
     private static class TrackerTableModel extends DefaultTableModel {
         private static final long serialVersionUID = 1L;
 
@@ -332,7 +331,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         }
     }
 
-    // --- INNER CLASS: Custom Renderer ---
     private class TrackerCellRenderer extends DefaultTableCellRenderer {
         private final Font emojiFont = new Font(FONT_EMOJI, Font.PLAIN, 28);
         private final Font moodHeaderFont = new Font(FONT_POPPINS, Font.BOLD, 16);
@@ -353,7 +351,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
 
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-            // [FIX] Mengurangi kompleksitas dengan memecah method
             JComponent c = (JComponent) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
             boolean isMoodRow = (row == table.getRowCount() - 1);
             
@@ -378,7 +375,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
             }
         }
 
-        // Helper Method 1
         private void configureBackground(JComponent c, boolean isSelected, boolean isMoodRow) {
             Color bgColor;
             if (isSelected) {
@@ -392,7 +388,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
             c.setBorder(isMoodRow ? BorderFactory.createMatteBorder(2, 0, 0, 0, BORDER_COLOR) : null);
         }
 
-        // Helper Method 2
         private JLabel configureLabelColumn(JLabel l, boolean isMoodRow, int column) {
             l.setFont(isMoodRow ? moodHeaderFont : cellFont);
             l.setHorizontalAlignment(column == 0 ? SwingConstants.CENTER : SwingConstants.LEFT);
@@ -400,14 +395,12 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
             return l;
         }
 
-        // Helper Method 3
         private Component configureDeleteButton(JComponent c, boolean isMoodRow, boolean isSelected) {
             if (isMoodRow) return c; 
             deleteBtn.setBackground(isSelected ? BG_SELECTION : BG_MAIN);
             return deleteBtn;
         }
 
-        // Helper Method 4
         private JLabel configureMoodCell(JLabel l, Object value) {
             l.setHorizontalAlignment(SwingConstants.CENTER);
             String text = (String) value;
@@ -422,7 +415,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
             return l;
         }
 
-        // Helper Method 5
         private JCheckBox configureCheckboxCell(Object value, boolean isSelected) {
             checkBox.setBackground(isSelected ? BG_SELECTION : BG_MAIN);
             checkBox.setSelected(Boolean.TRUE.equals(value));

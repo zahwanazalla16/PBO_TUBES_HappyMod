@@ -211,14 +211,10 @@ class HabitFacadeTest {
         // 2. Lakukan Aksi Tambah
         habitFacade.addHabit("Habit A");
         
-        // --- PERBAIKAN DI SINI ---
-        // Gunakan tipe 'List' bukan 'LinkedList' karena Facade me-return 'List'
         List<String> log = habitFacade.getActivityLog();
         
         assertEquals(1, log.size(), "Log harusnya berisi 1 item");
         
-        // Gunakan .get(size - 1) sebagai pengganti .getLast()
-        // karena interface 'List' tidak punya method .getLast()
         assertTrue(log.get(log.size() - 1).contains("Menambahkan"), "Isi log harus benar");
 
         // 3. Lakukan Aksi Hapus

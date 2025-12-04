@@ -7,11 +7,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import io.github.cdimascio.dotenv.Dotenv; 
 
-// Tambahkan baris ini untuk memberitahu SonarQube agar mengabaikan peringatan Singleton
+// memberitahu SonarQube agar mengabaikan peringatan Singleton
 @SuppressWarnings("java:S6548")
 public class DatabaseConnection {
     
-    // 1. Setup Logger
+    // Setup Logger
     private static final Logger LOGGER = Logger.getLogger(DatabaseConnection.class.getName());
     
     private static DatabaseConnection instance;
@@ -19,7 +19,6 @@ public class DatabaseConnection {
 
     private final Dotenv dotenv = Dotenv.load(); 
 
-    // 2. Variabel camelCase (Sesuai aturan naming convention)
     private final String dbUrl = dotenv.get("DB_URL");
     private final String dbUser = dotenv.get("DB_USERNAME");
     private final String dbPassword = dotenv.get("DB_PASSWORD");
