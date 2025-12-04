@@ -1,461 +1,183 @@
 package com.project.app.view;
 
-import com.project.app.facade.HabitFacade;
 import com.project.app.facade.MoodFacade;
-import com.project.app.model.Habit;
 import com.project.app.model.Mood;
-import com.project.app.observer.IObserver;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.MatteBorder;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableCellEditor;
-import javax.swing.table.TableCellRenderer;
-import javax.swing.table.TableColumn;
 import java.awt.*;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
+import java.awt.geom.Ellipse2D;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
-import java.util.List;
 
-public class MainDashboard extends JFrame implements IObserver {
+public class MainDashboard extends JFrame {
 
-    private final HabitFacade habitFacade = new HabitFacade();
     private final MoodFacade moodFacade = new MoodFacade();
-
-    private JTable trackerTable;
-    private DefaultTableModel tableModel;
-    private List<Habit> habitList;
-    
     private LocalDate weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
-
-    // --- PALET WARNA ---
-    private static final Color BG_MAIN = Color.WHITE; 
-    private static final Color BG_HEADER = new Color(248, 249, 250); 
-    private static final Color BORDER_COLOR = new Color(220, 220, 220); 
-    private static final Color TEXT_DARK = new Color(33, 37, 41); 
-    private static final Color ACCENT_BROWN = new Color(139, 115, 85); 
-    private static final Color BG_MOOD_ROW = new Color(250, 248, 245); 
-    private static final Color TEXT_PLACEHOLDER = Color.GRAY;
     
-    // WARNA MERAH KHUSUS DARI REFERENSI KAMU
-    private static final Color REF_RED = new Color(255, 100, 120); 
-
-    private final String[] MOOD_OPTIONS = {"", "😭", "😞", "😐", "😊", "😄"}; 
+    // --- PALET WARNA LIGHT THEME (SERAGAM DENGAN TRACKER) ---
+    private static final Color BG_MAIN = Color.WHITE;
+    private static final Color TEXT_DARK = new Color(33, 37, 41);
+    private static final Color ACCENT_BROWN = new Color(139, 115, 85);
+    private static final Color GRAPH_LINE = new Color(139, 115, 85); // Garis Coklat
+    private static final Color GRAPH_POINT = new Color(220, 53, 69); // Titik Merah
+    private static final Color GRID_COLOR = new Color(230, 230, 230); // Abu-abu muda
 
     public MainDashboard() {
-        setupLookAndFeel();
-        initFrame();
-        habitFacade.addObserver(this);
-        loadData();
-    }
-
-    private void setupLookAndFeel() {
-        try {
-            UIManager.put("Button.arc", 8);
-            UIManager.put("Component.arc", 8);
-            UIManager.put("Table.showVerticalLines", true); 
-            UIManager.put("Table.showHorizontalLines", true);
-            UIManager.put("Table.gridColor", BORDER_COLOR);
-        } catch (Exception e) {}
-    }
-
-    private void initFrame() {
-        setTitle("MoodFlow • Modern Tracker");
-        setSize(1350, 850);
+        setTitle("MoodFlow • Dashboard");
+        setSize(1000, 700);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         getContentPane().setBackground(BG_MAIN);
+        setLayout(new BorderLayout());
 
-        add(createTrackerPanel());
+        add(createHeader(), BorderLayout.NORTH);
+        add(new MoodGraphPanel(), BorderLayout.CENTER);
+        add(createBottomPanel(), BorderLayout.SOUTH);
     }
 
-    private JPanel createTrackerPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(BG_MAIN);
-        panel.setBorder(new EmptyBorder(40, 50, 50, 50)); 
-
-        panel.add(createHeader(), BorderLayout.NORTH);
-        panel.add(createTablePanel(), BorderLayout.CENTER);
-
-        return panel;
-    }
-
-    private Component createHeader() {
+    private JPanel createHeader() {
         JPanel header = new JPanel(new BorderLayout());
-        header.setOpaque(false);
-        header.setBorder(new EmptyBorder(0, 0, 30, 0));
+        header.setBackground(BG_MAIN);
+        header.setBorder(new EmptyBorder(30, 40, 10, 40));
 
-        JLabel title = new JLabel("Weekly Overview");
-        title.setFont(new Font("Poppins", Font.BOLD, 32));
+        JLabel title = new JLabel("Weekly Mood Analysis");
+        title.setFont(new Font("Poppins", Font.BOLD, 36));
         title.setForeground(TEXT_DARK);
 
-        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        right.setOpaque(false);
-        
-        JTextField input = new JTextField(25);
-        input.setFont(new Font("Poppins", Font.PLAIN, 14));
-        input.setBorder(BorderFactory.createCompoundBorder(
-            new MatteBorder(1, 1, 1, 1, BORDER_COLOR), 
-            new EmptyBorder(5, 10, 5, 10))
-        );
+        JLabel subtitle = new JLabel("Overview of your emotional journey this week (" + 
+                weekStart.format(DateTimeFormatter.ofPattern("dd MMM")) + " - " + 
+                weekStart.plusDays(6).format(DateTimeFormatter.ofPattern("dd MMM")) + ")");
+        subtitle.setFont(new Font("Poppins", Font.PLAIN, 16));
+        subtitle.setForeground(Color.GRAY);
 
-        setupPlaceholder(input, "Input habit baru...");
-        
-        JButton addBtn = new JButton("+ New Habit");
-        addBtn.setBackground(ACCENT_BROWN);
-        addBtn.setForeground(Color.WHITE);
-        addBtn.setFont(new Font("Poppins", Font.BOLD, 14));
-        addBtn.setFocusPainted(false);
-        addBtn.setBorder(new EmptyBorder(8, 20, 8, 20));
-        addBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        
-        addBtn.addActionListener(e -> {
-            String text = input.getText().trim();
-            if (!text.isEmpty() && !text.equals("Input habit baru...")) {
-                habitFacade.addHabit(text);
-                input.setText("");
-                setupPlaceholder(input, "Input habit baru..."); 
-                addBtn.requestFocusInWindow(); 
-            }
-        });
-
-        right.add(input);
-        right.add(Box.createHorizontalStrut(15));
-        right.add(addBtn);
-
-        header.add(title, BorderLayout.WEST);
-        header.add(right, BorderLayout.EAST);
+        header.add(title, BorderLayout.NORTH);
+        header.add(subtitle, BorderLayout.SOUTH);
         return header;
     }
 
-    private void setupPlaceholder(JTextField field, String placeholder) {
-        field.setText(placeholder);
-        field.setForeground(TEXT_PLACEHOLDER);
+    private JPanel createBottomPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        panel.setBackground(BG_MAIN);
+        panel.setBorder(new EmptyBorder(20, 0, 40, 0));
+
+        JButton btnOpenTracker = new JButton("Manage Habits & Log Mood");
+        btnOpenTracker.setFont(new Font("Poppins", Font.BOLD, 18));
+        btnOpenTracker.setBackground(ACCENT_BROWN);
+        btnOpenTracker.setForeground(Color.WHITE);
+        btnOpenTracker.setFocusPainted(false);
+        btnOpenTracker.setBorder(new EmptyBorder(15, 30, 15, 30));
+        btnOpenTracker.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        btnOpenTracker.addActionListener(e -> {
+            SwingUtilities.invokeLater(() -> {
+                WeeklyTrackerView tracker = new WeeklyTrackerView();
+                tracker.setVisible(true);
+                
+                tracker.addWindowListener(new java.awt.event.WindowAdapter() {
+                    @Override
+                    public void windowClosed(java.awt.event.WindowEvent windowEvent) {
+                        repaint(); // Refresh grafik saat tracker ditutup
+                    }
+                });
+            });
+        });
+
+        panel.add(btnOpenTracker);
+        return panel;
+    }
+
+    // --- CUSTOM COMPONENT: PANEL GRAFIK MOOD ---
+    private class MoodGraphPanel extends JPanel {
         
-        for(java.awt.event.FocusListener fl : field.getFocusListeners()) {
-            field.removeFocusListener(fl);
+        public MoodGraphPanel() {
+            setBackground(Color.WHITE); // Background Grafik Putih
+            setBorder(new EmptyBorder(20, 20, 20, 20));
         }
 
-        field.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                if (field.getText().equals(placeholder)) {
-                    field.setText("");
-                    field.setForeground(TEXT_DARK);
-                }
-            }
-            @Override
-            public void focusLost(FocusEvent e) {
-                if (field.getText().isEmpty()) {
-                    field.setText(placeholder);
-                    field.setForeground(TEXT_PLACEHOLDER);
-                }
-            }
-        });
-    }
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2 = (Graphics2D) g;
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-    private JScrollPane createTablePanel() {
-        setupTable();
-        JScrollPane scroll = new JScrollPane(trackerTable);
-        scroll.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1)); 
-        scroll.getViewport().setBackground(BG_MAIN);
-        return scroll;
-    }
+            int w = getWidth();
+            int h = getHeight();
+            int padding = 60;
+            int graphW = w - (2 * padding);
+            int graphH = h - (2 * padding);
 
-    private void setupTable() {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEE dd/MM");
-        String[] columns = new String[10];
-        columns[0] = "No";
-        columns[1] = "Activity"; 
-        for (int i = 0; i < 7; i++) {
-            columns[i + 2] = weekStart.plusDays(i).format(formatter);
-        }
-        columns[9] = "Action"; 
+            // 1. Gambar Sumbu
+            g2.setColor(Color.LIGHT_GRAY);
+            g2.setStroke(new BasicStroke(2));
+            g2.drawLine(padding, h - padding, padding, padding); // Y Axis
+            g2.drawLine(padding, h - padding, w - padding, h - padding); // X Axis
 
-        tableModel = new DefaultTableModel(columns, 0) {
-            @Override
-            public Class<?> getColumnClass(int columnIndex) {
-                return Object.class;
-            }
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                // Kolom Action (9) tidak editable langsung, klik ditangani MouseListener
-                return column >= 2 && column <= 8; 
-            }
-        };
-
-        trackerTable = new JTable(tableModel) {
-            Font emojiFont = new Font("Segoe UI Emoji", Font.PLAIN, 28);
-            Font normalFont = new Font("Poppins", Font.PLAIN, 14);
-            Font moodHeaderFont = new Font("Poppins", Font.BOLD, 16);
-            Font cellFont = new Font("Poppins", Font.PLAIN, 15);
-
-            @Override
-            public TableCellRenderer getCellRenderer(int row, int column) {
-                // A. LOGIKA UNTUK MOOD ROW (BARIS PALING BAWAH)
-                if (row == getRowCount() - 1) {
-                    // Jika kolom 0 atau 1 (Label "Daily Mood")
-                    if (column == 0 || column == 1) {
-                        return new DefaultTableCellRenderer() {
-                            @Override
-                            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                                JLabel l = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                                l.setBackground(BG_MOOD_ROW); 
-                                l.setFont(moodHeaderFont);
-                                l.setForeground(ACCENT_BROWN);
-                                l.setHorizontalAlignment(column == 1 ? SwingConstants.LEFT : SwingConstants.CENTER);
-                                if (column == 0) l.setText(""); 
-                                l.setBorder(BorderFactory.createMatteBorder(2, 0, 0, 0, BORDER_COLOR));
-                                return l;
-                            }
-                        };
-                    }
-                    // Jika kolom Action (9) di baris Mood -> Harus Kosong
-                    else if (column == 9) {
-                        return new DefaultTableCellRenderer() {
-                             @Override
-                             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                                 JPanel p = new JPanel();
-                                 p.setBackground(BG_MOOD_ROW);
-                                 p.setBorder(BorderFactory.createMatteBorder(2, 0, 0, 0, BORDER_COLOR));
-                                 return p;
-                             }
-                        };
-                    }
-                }
-
-                // B. ISI DATA (CHECKLIST & EMOJI MOOD)
-                if (column >= 2 && column <= 8) {
-                    if (row == getRowCount() - 1) { // MOOD EMOJI
-                        return new DefaultTableCellRenderer() {
-                            @Override
-                            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                                JLabel l = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                                l.setHorizontalAlignment(SwingConstants.CENTER);
-                                l.setBackground(BG_MOOD_ROW);
-                                l.setBorder(BorderFactory.createMatteBorder(2, 0, 0, 0, BORDER_COLOR));
-                                
-                                String text = (String) value;
-                                if (text == null || text.trim().isEmpty()) {
-                                    l.setFont(new Font("Poppins", Font.ITALIC, 12));
-                                    l.setForeground(Color.GRAY);
-                                    l.setText("Select ▼");
-                                } else {
-                                    l.setFont(emojiFont);
-                                    l.setForeground(TEXT_DARK);
-                                    l.setText(text);
-                                }
-                                return l;
-                            }
-                        };
-                    } else { // HABIT CHECKBOX
-                        return new TableCellRenderer() {
-                            final JCheckBox cb = new JCheckBox();
-                            @Override
-                            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                                cb.setHorizontalAlignment(JLabel.CENTER);
-                                cb.setBackground(isSelected ? BG_HEADER : BG_MAIN);
-                                if (value instanceof Boolean) {
-                                    cb.setSelected((Boolean) value);
-                                } else {
-                                    cb.setSelected(false);
-                                }
-                                return cb;
-                            }
-                        };
-                    }
-                }
+            // 2. Gambar Grid & Label Y (Mood 1-5)
+            String[] emojis = {"", "😭", "😞", "😐", "😊", "😄"};
+            for (int i = 1; i <= 5; i++) {
+                int y = (h - padding) - (i * graphH / 6);
                 
-                // C. Kolom Text Biasa (No, Activity)
-                if (column == 0 || column == 1) {
-                    return new DefaultTableCellRenderer() {
-                        @Override
-                        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                             JLabel l = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                             l.setFont(cellFont);
-                             l.setForeground(TEXT_DARK);
-                             l.setBackground(isSelected ? BG_HEADER : BG_MAIN);
-                             
-                             if(column == 1) l.setBorder(new EmptyBorder(0, 10, 0, 0));
-                             if(column == 0) l.setHorizontalAlignment(CENTER);
-                             return l;
-                        }
-                    };
-                }
+                // Grid Line Halus
+                g2.setColor(GRID_COLOR);
+                g2.setStroke(new BasicStroke(1));
+                g2.drawLine(padding, y, w - padding, y);
 
-                return super.getCellRenderer(row, column);
+                // Label Emoji
+                g2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 24));
+                g2.setColor(TEXT_DARK);
+                g2.drawString(emojis[i], padding - 45, y + 10);
             }
 
-            @Override
-            public TableCellEditor getCellEditor(int row, int column) {
-                if (column >= 2 && column <= 8) {
-                    if (row == getRowCount() - 1) {
-                        JComboBox<String> combo = new JComboBox<>(MOOD_OPTIONS);
-                        combo.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 28));
-                        ((JLabel)combo.getRenderer()).setHorizontalAlignment(SwingConstants.CENTER);
-                        return new DefaultCellEditor(combo);
-                    } else {
-                        JCheckBox cb = new JCheckBox();
-                        cb.setHorizontalAlignment(JLabel.CENTER);
-                        cb.setBackground(BG_MAIN);
-                        return new DefaultCellEditor(cb);
-                    }
-                }
-                return super.getCellEditor(row, column);
-            }
-        };
+            // 3. Gambar Data
+            int[] xPoints = new int[7];
+            int[] yPoints = new int[7];
+            boolean[] hasData = new boolean[7];
 
-        // --- STYLE TABLE ---
-        trackerTable.setRowHeight(60);
-        trackerTable.setShowGrid(true); 
-        trackerTable.setShowVerticalLines(true);
-        trackerTable.setGridColor(BORDER_COLOR);
-        trackerTable.setIntercellSpacing(new Dimension(1, 1));
-        
-        trackerTable.getTableHeader().setBackground(BG_HEADER); 
-        trackerTable.getTableHeader().setForeground(TEXT_DARK);
-        trackerTable.getTableHeader().setFont(new Font("Poppins", Font.BOLD, 14));
-        trackerTable.getTableHeader().setPreferredSize(new Dimension(0, 50)); 
-        ((JComponent)trackerTable.getTableHeader()).setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, BORDER_COLOR));
+            g2.setFont(new Font("Poppins", Font.BOLD, 14));
+            DateTimeFormatter dayFmt = DateTimeFormatter.ofPattern("EEE");
 
-        // ==================================================================================
-        // === FIX TOMBOL DELETE MENGGUNAKAN GAYA REFERENSI ===
-        // ==================================================================================
-        TableColumn deleteCol = trackerTable.getColumnModel().getColumn(9);
-        deleteCol.setMaxWidth(80); 
-        
-        // KITA SET SECARA EKSPLISIT RENDERER UNTUK KOLOM 9 DISINI
-        // AGAR TIDAK TERTIMPA RENDERER DEFAULT
-        deleteCol.setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-                
-                // 1. JIKA BARIS MOOD (PALING BAWAH) -> TAMPILKAN KOSONG
-                if (row == table.getRowCount() - 1) {
-                    JPanel p = new JPanel();
-                    p.setBackground(BG_MOOD_ROW); // Warna background mood row
-                    p.setBorder(BorderFactory.createMatteBorder(2, 0, 0, 0, BORDER_COLOR));
-                    return p;
-                }
-                
-                // 2. JIKA BARIS HABIT BIASA -> TAMPILKAN BUTTON '×' MERAH
-                JButton btn = new JButton("×");
-                btn.setFont(new Font("Poppins", Font.BOLD, 24)); // Font Besar Tebal
-                btn.setForeground(REF_RED); // Warna Merah Referensi
-                
-                // Style agar menyatu dengan tabel (flat look)
-                btn.setBackground(isSelected ? BG_HEADER : BG_MAIN); 
-                btn.setFocusPainted(false);
-                btn.setBorderPainted(false);
-                btn.setContentAreaFilled(false); // Transparan background
-                btn.setOpaque(true); // Biar warna background (putih/abu) kelihatan
-                
-                return btn;
-            }
-        });
-
-        // Event Listener: Deteksi Klik pada Kolom 9
-        trackerTable.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseClicked(java.awt.event.MouseEvent evt) {
-                int row = trackerTable.rowAtPoint(evt.getPoint());
-                int col = trackerTable.columnAtPoint(evt.getPoint());
-                
-                // Pastikan klik di kolom Action (9) dan BUKAN di baris Mood
-                if (col == 9 && row >= 0 && row < habitList.size()) {
-                    confirmAndDelete(row);
-                }
-            }
-        });
-
-        // Listener perubahan data
-        tableModel.addTableModelListener(e -> {
-            if (e.getType() == javax.swing.event.TableModelEvent.UPDATE) {
-                int row = e.getFirstRow();
-                int col = e.getColumn();
-                if (col >= 2 && col <= 8) {
-                    handleDataChange(row, col);
-                }
-            }
-        });
-    }
-
-    private void handleDataChange(int row, int col) {
-        int dayIndex = col - 2;
-        LocalDate date = weekStart.plusDays(dayIndex);
-
-        if (row == tableModel.getRowCount() - 1) {
-            String emoji = (String) tableModel.getValueAt(row, col);
-            int moodVal = 0;
-            for (int i=1; i<MOOD_OPTIONS.length; i++) {
-                if (MOOD_OPTIONS[i].equals(emoji)) {
-                    moodVal = i;
-                    break;
-                }
-            }
-            moodFacade.saveMood(moodVal, date);
-        } else if (row < habitList.size()) {
-            boolean isChecked = Boolean.TRUE.equals(tableModel.getValueAt(row, col));
-            Habit h = habitList.get(row);
-            habitFacade.updateHabitStatus(h.getId(), date, isChecked);
-        }
-    }
-
-    private void confirmAndDelete(int row) {
-        Habit h = habitList.get(row);
-        int choice = JOptionPane.showConfirmDialog(this, 
-            "Apakah Anda yakin ingin menghapus habit '" + h.getName() + "'?", 
-            "Konfirmasi Hapus", 
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.WARNING_MESSAGE);
-            
-        if (choice == JOptionPane.YES_OPTION) {
-            habitFacade.deleteHabit(h.getId());
-        }
-    }
-
-    @Override
-    public void onDataChanged() {
-        SwingUtilities.invokeLater(this::loadData);
-    }
-
-    private void loadData() {
-        tableModel.setRowCount(0);
-
-        habitList = habitFacade.getHabits();
-        int no = 1;
-        for (Habit h : habitList) {
-            Object[] row = new Object[10];
-            row[0] = no++;
-            row[1] = h.getName();
             for (int i = 0; i < 7; i++) {
-                row[i + 2] = habitFacade.getHabitStatus(h.getId(), weekStart.plusDays(i));
-            }
-            // Kolom Action kita isi string kosong saja, karena renderer yang akan menggambarnya
-            row[9] = ""; 
-            tableModel.addRow(row);
-        }
+                LocalDate date = weekStart.plusDays(i);
+                Mood mood = moodFacade.getMood(date);
 
-        Object[] moodRow = new Object[10];
-        moodRow[0] = "";
-        moodRow[1] = "Daily Mood"; 
-        
-        for (int i = 0; i < 7; i++) {
-            LocalDate d = weekStart.plusDays(i);
-            Mood m = moodFacade.getMood(d);
-            if (m != null && m.getMoodValue() >= 1 && m.getMoodValue() <= 5) {
-                moodRow[i+2] = MOOD_OPTIONS[m.getMoodValue()];
-            } else {
-                moodRow[i+2] = ""; 
+                int x = padding + (i * graphW / 6);
+                xPoints[i] = x;
+
+                // Label Hari
+                g2.setColor(Color.GRAY);
+                g2.drawString(date.format(dayFmt), x - 15, h - padding + 25);
+
+                if (mood != null && mood.getMoodValue() > 0) {
+                    int val = mood.getMoodValue();
+                    int y = (h - padding) - (val * graphH / 6);
+                    yPoints[i] = y;
+                    hasData[i] = true;
+                } else {
+                    hasData[i] = false;
+                }
+            }
+
+            // Gambar Garis Penghubung
+            g2.setColor(GRAPH_LINE);
+            g2.setStroke(new BasicStroke(3f));
+            for (int i = 0; i < 6; i++) {
+                if (hasData[i] && hasData[i+1]) {
+                    g2.drawLine(xPoints[i], yPoints[i], xPoints[i+1], yPoints[i+1]);
+                }
+            }
+
+            // Gambar Titik
+            for (int i = 0; i < 7; i++) {
+                if (hasData[i]) {
+                    g2.setColor(GRAPH_POINT);
+                    g2.fill(new Ellipse2D.Double(xPoints[i] - 6, yPoints[i] - 6, 12, 12));
+                    g2.setColor(BG_MAIN);
+                    g2.draw(new Ellipse2D.Double(xPoints[i] - 6, yPoints[i] - 6, 12, 12));
+                }
             }
         }
-        moodRow[9] = "";
-        tableModel.addRow(moodRow);
     }
 }
