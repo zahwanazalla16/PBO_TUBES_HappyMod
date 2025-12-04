@@ -99,32 +99,39 @@ public class HabitRepository {
 
     // Cek status Habit di tanggal tertentu
     public boolean isHabitDone(int habitId, LocalDate date) {
-        String sql = "SELECT is_completed FROM habit_logs WHERE habit_id = ? AND date = ?";
+        String sql = "SELECT 1 FROM habit_logs WHERE habit_id = ? AND date = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, habitId);
             stmt.setDate(2, Date.valueOf(date));
             ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getBoolean("is_completed");
-            }
+            return rs.next(); // Jika ada datanya, berarti true (done)
         } catch (SQLException e) {
             e.printStackTrace();
         }
         return false;
     }
 
-    // Toggle Ceklis Habit (Upsert: Insert or Update)
     public void setHabitStatus(int habitId, LocalDate date, boolean status) {
-        String sql = "INSERT INTO habit_logs (habit_id, date, is_completed) VALUES (?, ?, ?) " +
-                     "ON CONFLICT (habit_id, date) DO UPDATE SET is_completed = ?";
-        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, habitId);
-            stmt.setDate(2, Date.valueOf(date));
-            stmt.setBoolean(3, status);
-            stmt.setBoolean(4, status);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
+        if (status) {
+            // INSERT (Jika diceklis)
+            // Menggunakan NOT EXISTS agar tidak error jika diklik berkali-kali (Duplicate prevention)
+            String sql = "INSERT INTO habit_logs (habit_id, date) SELECT ?, ? " +
+                         "WHERE NOT EXISTS (SELECT 1 FROM habit_logs WHERE habit_id = ? AND date = ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setInt(1, habitId);
+                stmt.setDate(2, Date.valueOf(date));
+                stmt.setInt(3, habitId);
+                stmt.setDate(4, Date.valueOf(date));
+                stmt.executeUpdate();
+            } catch (SQLException e) { e.printStackTrace(); }
+        } else {
+            // DELETE (Jika di-unceklis)
+            String sql = "DELETE FROM habit_logs WHERE habit_id = ? AND date = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setInt(1, habitId);
+                stmt.setDate(2, Date.valueOf(date));
+                stmt.executeUpdate();
+            } catch (SQLException e) { e.printStackTrace(); }
         }
     }
 }

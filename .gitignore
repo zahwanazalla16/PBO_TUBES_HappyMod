@@ -1,0 +1,17 @@
+.env
+*.class
+out/
+target/
+build/
+bin/
+.vscode/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.log
