@@ -85,14 +85,26 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
     }
 
     private Component createHeader() {
-        JPanel header = new JPanel(new BorderLayout());
+        JPanel header = new JPanel(new BorderLayout(20, 0));
         header.setOpaque(false);
         header.setBorder(new EmptyBorder(0, 0, 30, 0));
+
+        // --- Back Button ---
+        JButton backBtn = new JButton("← Kembali ke Dashboard");
+        backBtn.setFont(new Font("Poppins", Font.BOLD, 14));
+        backBtn.setForeground(TEXT_DARK);
+        backBtn.setFocusPainted(false);
+        backBtn.setContentAreaFilled(false);
+        backBtn.setBorder(new EmptyBorder(8, 0, 8, 20));
+        backBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        backBtn.addActionListener(e -> dispose()); // Simply close the window
 
         JLabel title = new JLabel("Weekly Overview");
         title.setFont(new Font("Poppins", Font.BOLD, 32));
         title.setForeground(TEXT_DARK);
+        title.setHorizontalAlignment(SwingConstants.CENTER);
 
+        // --- Right side controls ---
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         right.setOpaque(false);
         
@@ -103,10 +115,7 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
             new EmptyBorder(5, 10, 5, 10))
         );
         
-        // --- FITUR CURSOR KEDIP-KEDIP ---
-        input.setCaretColor(TEXT_DARK); // Memastikan garis cursor berwarna gelap agar terlihat
-        
-        // Setup Placeholder
+        input.setCaretColor(TEXT_DARK);
         setupPlaceholder(input, "Input habit baru...");
         
         JButton addBtn = new JButton("+ New Habit");
@@ -131,7 +140,8 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         right.add(Box.createHorizontalStrut(15));
         right.add(addBtn);
 
-        header.add(title, BorderLayout.WEST);
+        header.add(backBtn, BorderLayout.WEST);
+        header.add(title, BorderLayout.CENTER);
         header.add(right, BorderLayout.EAST);
         return header;
     }
@@ -140,7 +150,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         field.setText(placeholder);
         field.setForeground(TEXT_PLACEHOLDER);
         
-        // Bersihkan listener lama (jika ada) untuk mencegah duplikasi event
         for(java.awt.event.FocusListener fl : field.getFocusListeners()) {
             field.removeFocusListener(fl);
         }
@@ -148,16 +157,13 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         field.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent e) {
-                // Saat diklik, jika isinya masih placeholder, kosongkan
                 if (field.getText().equals(placeholder)) {
                     field.setText("");
                     field.setForeground(TEXT_DARK);
                 }
-                // Saat teks kosong, Java Swing otomatis menampilkan cursor (caret) kedip-kedip
             }
             @Override
             public void focusLost(FocusEvent e) {
-                // Saat ditinggalkan, jika kosong, kembalikan placeholder
                 if (field.getText().isEmpty()) {
                     field.setText(placeholder);
                     field.setForeground(TEXT_PLACEHOLDER);
@@ -203,7 +209,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
 
             @Override
             public TableCellRenderer getCellRenderer(int row, int column) {
-                // A. LOGIKA UNTUK MOOD ROW (BARIS PALING BAWAH)
                 if (row == getRowCount() - 1) {
                     if (column == 0 || column == 1) {
                         return new DefaultTableCellRenderer() {
@@ -232,9 +237,8 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
                     }
                 }
 
-                // B. ISI DATA
                 if (column >= 2 && column <= 8) {
-                    if (row == getRowCount() - 1) { // MOOD EMOJI
+                    if (row == getRowCount() - 1) {
                         return new DefaultTableCellRenderer() {
                             @Override
                             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
@@ -256,7 +260,7 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
                                 return l;
                             }
                         };
-                    } else { // HABIT CHECKBOX
+                    } else { 
                         return new TableCellRenderer() {
                             final JCheckBox cb = new JCheckBox();
                             @Override
@@ -274,7 +278,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
                     }
                 }
                 
-                // C. Kolom Text Biasa
                 if (column == 0 || column == 1) {
                     return new DefaultTableCellRenderer() {
                         @Override
@@ -312,7 +315,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
             }
         };
 
-        // --- STYLE TABLE ---
         trackerTable.setRowHeight(60);
         trackerTable.setShowGrid(true); 
         trackerTable.setShowVerticalLines(true);
@@ -325,7 +327,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         trackerTable.getTableHeader().setPreferredSize(new Dimension(0, 50)); 
         ((JComponent)trackerTable.getTableHeader()).setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, BORDER_COLOR));
 
-        // === TOMBOL DELETE MERAH ===
         TableColumn deleteCol = trackerTable.getColumnModel().getColumn(9);
         deleteCol.setMaxWidth(80); 
         
@@ -350,7 +351,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
             }
         });
 
-        // Event Listener
         trackerTable.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent evt) {

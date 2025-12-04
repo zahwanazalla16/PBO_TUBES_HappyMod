@@ -1,11 +1,11 @@
-
 package com.project.app.view;
 
 import com.project.app.facade.MoodFacade;
-import com.project.app.model.AnalysisHabitMood; // Import the new model
 import com.project.app.model.Mood;
-import com.project.app.service.AnalysisService; // Import the new service
+import com.project.app.service.AnalysisService;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.geom.Ellipse2D;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -21,23 +21,19 @@ public class MainDashboard extends JFrame {
     private final AnalysisService analysisService = new AnalysisService(); // Instantiate AnalysisService
     private LocalDate weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
     
-    // Panel to hold analysis results
-    private JPanel analysisResultPanel;
+    private JPanel analysisContentPanel; // Panel to hold the dynamic analysis labels
 
-    // --- PALET WARNA LIGHT THEME (SERAGAM DENGAN TRACKER) ---
     private static final Color BG_MAIN = Color.WHITE;
     private static final Color TEXT_DARK = new Color(33, 37, 41);
     private static final Color ACCENT_BROWN = new Color(139, 115, 85);
-    private static final Color GRAPH_LINE = new Color(139, 115, 85); // Garis Coklat
-    private static final Color GRAPH_POINT = new Color(220, 53, 69); // Titik Merah
-    private static final Color GRID_COLOR = new Color(230, 230, 230); // Abu-abu muda
-    // New color for positive/negative impact
-    private static final Color POSITIVE_IMPACT_COLOR = new Color(40, 167, 69); // Green
-    private static final Color NEGATIVE_IMPACT_COLOR = new Color(220, 53, 69); // Red
+    private static final Color GRAPH_LINE = new Color(139, 115, 85);
+    private static final Color GRAPH_POINT = new Color(220, 53, 69);
+    private static final Color GRID_COLOR = new Color(230, 230, 230);
+    private static final Color ACCENT_BLUE = new Color(13, 110, 253);
 
     public MainDashboard() {
         setTitle("MoodFlow • Dashboard");
-        setSize(1200, 700); // Increased width to accommodate analysis panel
+        setSize(1200, 700);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         getContentPane().setBackground(BG_MAIN);
@@ -46,9 +42,10 @@ public class MainDashboard extends JFrame {
         add(createHeader(), BorderLayout.NORTH);
         add(new MoodGraphPanel(), BorderLayout.CENTER);
         add(createBottomPanel(), BorderLayout.SOUTH);
+        add(createAnalysisPanel(), BorderLayout.EAST);
         
-        analysisResultPanel = createAnalysisPanel(); // Initialize analysis panel
-        add(analysisResultPanel, BorderLayout.EAST); // Add analysis panel to the EAST
+        // Initial load of analyses
+        SwingUtilities.invokeLater(this::loadRandomAnalyses);
     }
 
     private JPanel createHeader() {
@@ -92,8 +89,8 @@ public class MainDashboard extends JFrame {
                 tracker.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosed(java.awt.event.WindowEvent windowEvent) {
-                        repaint(); // Refresh grafik saat tracker ditutup
-                        refreshAnalysisPanel(); // Refresh analysis panel saat tracker ditutup
+                        repaint(); // Refresh graph
+                        loadRandomAnalyses(); // Refresh analyses
                     }
                 });
             });
@@ -104,80 +101,79 @@ public class MainDashboard extends JFrame {
     }
 
     private JPanel createAnalysisPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        JPanel panel = new JPanel(new BorderLayout(0, 15));
         panel.setBackground(BG_MAIN);
-        panel.setBorder(new EmptyBorder(30, 20, 30, 40)); // Padding for the panel
+        panel.setBorder(new EmptyBorder(30, 20, 30, 40));
+        panel.setPreferredSize(new Dimension(350, 0));
 
-        JLabel title = new JLabel("Habit Impact on Mood");
+        // Header (Title + Reload Button)
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(BG_MAIN);
+
+        JLabel title = new JLabel("Analisis Cerdas");
         title.setFont(new Font("Poppins", Font.BOLD, 24));
         title.setForeground(TEXT_DARK);
-        title.setAlignmentX(Component.LEFT_ALIGNMENT); // Align title to the left
-        panel.add(title);
-        panel.add(Box.createVerticalStrut(20)); // Space below title
+        
+        JLabel reloadLabel = new JLabel("Muat Ulang ↻");
+        reloadLabel.setFont(new Font("Poppins", Font.BOLD, 14));
+        reloadLabel.setForeground(ACCENT_BLUE);
+        reloadLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        reloadLabel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                loadRandomAnalyses();
+            }
+        });
 
-        updateAnalysisContent(panel); // Populate with initial analysis
+        headerPanel.add(title, BorderLayout.WEST);
+        headerPanel.add(reloadLabel, BorderLayout.EAST);
+        
+        panel.add(headerPanel, BorderLayout.NORTH);
+
+        // Content Panel for the analysis results
+        analysisContentPanel = new JPanel();
+        analysisContentPanel.setLayout(new BoxLayout(analysisContentPanel, BoxLayout.Y_AXIS));
+        analysisContentPanel.setBackground(BG_MAIN);
+        
+        JScrollPane scrollPane = new JScrollPane(analysisContentPanel);
+        scrollPane.setBorder(null);
+        scrollPane.setBackground(BG_MAIN);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+
+        panel.add(scrollPane, BorderLayout.CENTER);
 
         return panel;
     }
 
-    private void updateAnalysisContent(JPanel panel) {
-        // Clear previous content, except the title
-        for (int i = panel.getComponentCount() - 1; i > 1; i--) { // Keep title and strut
-            panel.remove(i);
-        }
+    private void loadRandomAnalyses() {
+        analysisContentPanel.removeAll();
+        
+        List<String> analyses = analysisService.getSevenRandomAnalyses();
 
-        List<AnalysisHabitMood> impacts = analysisService.getHabitMoodImpacts(weekStart, weekStart.plusDays(6));
-
-        if (impacts.isEmpty()) {
-            JLabel noDataLabel = new JLabel("No sufficient data for habit-mood analysis this week.");
+        if (analyses.isEmpty()) {
+            JLabel noDataLabel = new JLabel("<html><p style='width:250px;'>Belum ada cukup data untuk dianalisis. Terus catat mood dan kebiasaanmu setiap hari!</p></html>");
             noDataLabel.setFont(new Font("Poppins", Font.PLAIN, 14));
             noDataLabel.setForeground(Color.GRAY);
-            noDataLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-            panel.add(noDataLabel);
+            analysisContentPanel.add(noDataLabel);
         } else {
-            for (AnalysisHabitMood impact : impacts) {
-                JLabel habitLabel = new JLabel();
-                habitLabel.setFont(new Font("Poppins", Font.PLAIN, 15));
-                habitLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-                String impactText;
-                Color impactColor;
-                if (impact.getMoodImpact() > 0) {
-                    impactText = String.format("<html><b>%s</b> increases mood by <font color='#%s'>+%.2f</font> points.</html>", 
-                                                impact.getHabitName(), 
-                                                Integer.toHexString(POSITIVE_IMPACT_COLOR.getRGB()).substring(2),
-                                                impact.getMoodImpact());
-                    impactColor = POSITIVE_IMPACT_COLOR;
-                } else if (impact.getMoodImpact() < 0) {
-                    impactText = String.format("<html><b>%s</b> decreases mood by <font color='#%s'>%.2f</font> points.</html>", 
-                                                impact.getHabitName(),
-                                                Integer.toHexString(NEGATIVE_IMPACT_COLOR.getRGB()).substring(2),
-                                                impact.getMoodImpact());
-                    impactColor = NEGATIVE_IMPACT_COLOR;
-                } else {
-                    impactText = String.format("<html><b>%s</b> has no noticeable impact on mood.</html>", impact.getHabitName());
-                    impactColor = TEXT_DARK;
-                }
-                habitLabel.setText(impactText);
-                habitLabel.setForeground(TEXT_DARK); // Set base color, HTML will override for numbers
-                panel.add(habitLabel);
-                panel.add(Box.createVerticalStrut(5)); // Small space between habits
+            for (String analysisText : analyses) {
+                JLabel analysisLabel = new JLabel("<html><p style='width:250px;'>• " + analysisText + "</p></html>");
+                analysisLabel.setFont(new Font("Poppins", Font.PLAIN, 15));
+                analysisLabel.setForeground(TEXT_DARK);
+                analysisLabel.setBorder(new EmptyBorder(0, 0, 10, 0)); // Space between items
+                analysisContentPanel.add(analysisLabel);
             }
         }
-        panel.revalidate();
-        panel.repaint();
-    }
-    
-    private void refreshAnalysisPanel() {
-        updateAnalysisContent(analysisResultPanel);
+        analysisContentPanel.revalidate();
+        analysisContentPanel.repaint();
     }
 
-    // --- CUSTOM COMPONENT: PANEL GRAFIK MOOD ---
+    // --- CUSTOM COMPONENT: MOOD GRAPH PANEL ---
     private class MoodGraphPanel extends JPanel {
         
         public MoodGraphPanel() {
-            setBackground(Color.WHITE); // Background Grafik Putih
+            setBackground(Color.WHITE);
             setBorder(new EmptyBorder(20, 20, 20, 20));
         }
 
@@ -193,29 +189,22 @@ public class MainDashboard extends JFrame {
             int graphW = w - (2 * padding);
             int graphH = h - (2 * padding);
 
-            // 1. Gambar Sumbu
             g2.setColor(Color.LIGHT_GRAY);
             g2.setStroke(new BasicStroke(2));
             g2.drawLine(padding, h - padding, padding, padding); // Y Axis
             g2.drawLine(padding, h - padding, w - padding, h - padding); // X Axis
 
-            // 2. Gambar Grid & Label Y (Mood 1-5)
             String[] emojis = {"", "😭", "😞", "😐", "😊", "😄"};
             for (int i = 1; i <= 5; i++) {
                 int y = (h - padding) - (i * graphH / 6);
-                
-                // Grid Line Halus
                 g2.setColor(GRID_COLOR);
                 g2.setStroke(new BasicStroke(1));
                 g2.drawLine(padding, y, w - padding, y);
-
-                // Label Emoji
                 g2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 24));
                 g2.setColor(TEXT_DARK);
                 g2.drawString(emojis[i], padding - 45, y + 10);
             }
 
-            // 3. Gambar Data
             int[] xPoints = new int[7];
             int[] yPoints = new int[7];
             boolean[] hasData = new boolean[7];
@@ -226,14 +215,10 @@ public class MainDashboard extends JFrame {
             for (int i = 0; i < 7; i++) {
                 LocalDate date = weekStart.plusDays(i);
                 Mood mood = moodFacade.getMood(date);
-
                 int x = padding + (i * graphW / 6);
                 xPoints[i] = x;
-
-                // Label Hari
                 g2.setColor(Color.GRAY);
                 g2.drawString(date.format(dayFmt), x - 15, h - padding + 25);
-
                 if (mood != null && mood.getMoodValue() > 0) {
                     int val = mood.getMoodValue();
                     int y = (h - padding) - (val * graphH / 6);
@@ -244,7 +229,6 @@ public class MainDashboard extends JFrame {
                 }
             }
 
-            // Gambar Garis Penghubung
             g2.setColor(GRAPH_LINE);
             g2.setStroke(new BasicStroke(3f));
             for (int i = 0; i < 6; i++) {
@@ -253,7 +237,6 @@ public class MainDashboard extends JFrame {
                 }
             }
 
-            // Gambar Titik
             for (int i = 0; i < 7; i++) {
                 if (hasData[i]) {
                     g2.setColor(GRAPH_POINT);

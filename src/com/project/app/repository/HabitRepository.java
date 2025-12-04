@@ -41,7 +41,7 @@ public class HabitRepository {
                 );
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Error getting habit by id: " + e.getMessage());
         }
         return null;
     }
