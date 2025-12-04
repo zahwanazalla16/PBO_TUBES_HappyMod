@@ -3,7 +3,6 @@ package app.service;
 import app.model.Habit;
 import app.repository.AnalysisRepository;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.TextStyle;
 import java.util.*;

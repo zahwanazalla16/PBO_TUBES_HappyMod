@@ -4,7 +4,6 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-
 import app.config.DatabaseConnection;
 import app.model.Habit;
 
@@ -30,17 +29,14 @@ public class HabitRepository {
     }
 
     // --- READ (Single) ---
+    // Tetap disimpan karena dipakai Facade untuk mengambil nama habit saat logging
     public Habit getHabitById(int id) {
         String sql = "SELECT * FROM habits WHERE id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
-                // Constructor Habit hanya ID dan Name (Sesuai request, tanpa is_completed)
-                return new Habit(
-                        rs.getInt("id"),
-                        rs.getString("name")
-                );
+                return new Habit(rs.getInt("id"), rs.getString("name"));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -56,29 +52,12 @@ public class HabitRepository {
         try (Statement stmt = conn.createStatement()) {
             ResultSet rs = stmt.executeQuery(sql);
             while (rs.next()) {
-                habits.add(new Habit(
-                        rs.getInt("id"),
-                        rs.getString("name")
-                ));
+                habits.add(new Habit(rs.getInt("id"), rs.getString("name")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
         return habits;
-    }
-
-    // --- UPDATE ---
-    public boolean updateHabit(Habit habit) {
-        String sql = "UPDATE habits SET name = ? WHERE id = ?";
-        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, habit.getName());
-            stmt.setInt(2, habit.getId());
-            stmt.executeUpdate();
-            return true;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
     }
 
     // --- DELETE ---
@@ -94,10 +73,7 @@ public class HabitRepository {
         }
     }
 
-    // ==========================================
-    // TRACKING / LOGGING (Habit Logs Table)
-    // ==========================================
-
+    // --- TRACKING LOGS ---
     public boolean isHabitDone(int habitId, LocalDate date) {
         String sql = "SELECT 1 FROM habit_logs WHERE habit_id = ? AND date = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -111,7 +87,6 @@ public class HabitRepository {
         return false;
     }
 
-    // [UBAH] Return boolean agar Facade tau sukses/gagal
     public boolean setHabitStatus(int habitId, LocalDate date, boolean status) {
         if (status) {
             // INSERT (Tandai Selesai)
@@ -120,23 +95,17 @@ public class HabitRepository {
                 stmt.setInt(1, habitId);
                 stmt.setDate(2, Date.valueOf(date));
                 stmt.executeUpdate();
-                return true; // Sukses Insert
-            } catch (SQLException e) { 
-                e.printStackTrace(); 
-                return false;
-            }
+                return true;
+            } catch (SQLException e) { e.printStackTrace(); return false; }
         } else {
-            // DELETE (Hapus Tanda Selesai / Unchecklist)
+            // DELETE (Hapus Tanda Selesai)
             String sql = "DELETE FROM habit_logs WHERE habit_id = ? AND date = ?";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, habitId);
                 stmt.setDate(2, Date.valueOf(date));
                 stmt.executeUpdate();
-                return true; // Sukses Delete
-            } catch (SQLException e) { 
-                e.printStackTrace(); 
-                return false;
-            }
+                return true;
+            } catch (SQLException e) { e.printStackTrace(); return false; }
         }
     }
 }

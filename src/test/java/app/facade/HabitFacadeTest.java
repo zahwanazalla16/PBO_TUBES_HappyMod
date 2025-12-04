@@ -3,7 +3,6 @@ package app.facade;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentMatchers;
 
 // Import Package Aplikasi
 import app.model.Habit;
@@ -22,7 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
-@DisplayName("Test Lengkap HabitFacade (CRUD + Tracking + Observer)")
+@DisplayName("Test Lengkap HabitFacade (Add, Delete, Tracking)")
 class HabitFacadeTest {
 
     // 1. Siapkan Objek Mock (Palsu)
@@ -91,40 +90,7 @@ class HabitFacadeTest {
     }
 
     // ==========================================
-    // 2. TEST FITUR UPDATE HABIT
-    // ==========================================
-
-    @Test
-    @DisplayName("UPDATE SUKSES: Data valid -> Observer harus bunyi")
-    void testUpdateHabit_Success() {
-        // SKENARIO: Repo berhasil update
-        when(repositoryMock.updateHabit(any(Habit.class))).thenReturn(true);
-
-        // EKSEKUSI
-        boolean result = habitFacade.updateHabit(1, "Belajar JUnit");
-
-        // VERIFIKASI
-        assertTrue(result);
-        verify(repositoryMock).updateHabit(any(Habit.class));
-        verify(observerMock, times(1)).onDataChanged(); // UI harus refresh
-    }
-
-    @Test
-    @DisplayName("UPDATE GAGAL: ID tidak ditemukan / DB Error -> Observer diam")
-    void testUpdateHabit_Fail() {
-        // SKENARIO: Repo gagal update
-        when(repositoryMock.updateHabit(any(Habit.class))).thenReturn(false);
-
-        // EKSEKUSI
-        boolean result = habitFacade.updateHabit(99, "Gak Bakal Keupdate");
-
-        // VERIFIKASI
-        assertFalse(result);
-        verify(observerMock, never()).onDataChanged(); // UI jangan refresh
-    }
-
-    // ==========================================
-    // 3. TEST FITUR DELETE HABIT
+    // 2. TEST FITUR DELETE HABIT
     // ==========================================
 
     @Test
@@ -156,7 +122,7 @@ class HabitFacadeTest {
     }
 
     // ==========================================
-    // 4. TEST FITUR GET (READ DATA)
+    // 3. TEST FITUR GET (READ DATA)
     // ==========================================
 
     @Test
@@ -196,7 +162,7 @@ class HabitFacadeTest {
     }
 
     // ==========================================
-    // 5. TEST FITUR TRACKING (CHECKBOX)
+    // 4. TEST FITUR TRACKING (CHECKBOX)
     // ==========================================
 
     @Test
@@ -217,17 +183,20 @@ class HabitFacadeTest {
     @DisplayName("TRACKING: Update Status (Centang/Uncentang)")
     void testUpdateHabitStatus() {
         LocalDate today = LocalDate.now();
+        // Setup repo sukses
+        when(repositoryMock.setHabitStatus(anyInt(), any(), anyBoolean())).thenReturn(true);
 
         // EKSEKUSI: Centang (True)
         habitFacade.updateHabitStatus(1, today, true);
 
         // VERIFIKASI: Pastikan method di repo dipanggil dengan parameter yg benar
         verify(repositoryMock).setHabitStatus(1, today, true);
+        verify(observerMock).onDataChanged(); // UI update
     }
 
 
     // ==========================================
-    // 2. TEST KHUSUS JCF (HashMap & LinkedList)
+    // 5. TEST KHUSUS JCF (HashMap & LinkedList)
     // ==========================================
 
     @Test
