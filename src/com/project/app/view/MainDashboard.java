@@ -3,270 +3,291 @@ package com.project.app.view;
 import com.project.app.facade.HabitFacade;
 import com.project.app.facade.MoodFacade;
 import com.project.app.model.Habit;
-
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
+import com.project.app.observer.IObserver;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import javax.swing.event.TableModelEvent;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableColumn;
 
-public class MainDashboard extends JFrame implements com.project.app.observer.IObserver {
+public class MainDashboard extends JFrame implements IObserver {
 
-    private HabitFacade habitFacade = new HabitFacade();
-    private MoodFacade moodFacade = new MoodFacade();
+    private final HabitFacade habitFacade = new HabitFacade();
+    private final MoodFacade moodFacade = new MoodFacade();
 
-    // Komponen Global agar bisa diakses dari method lain
-    private JTable table;
+    private JTable habitTable;
     private DefaultTableModel tableModel;
-    private List<Habit> habitList; // Untuk menyimpan referensi ID habit yang tampil
-    private LocalDate startOfWeek;
+    private List<Habit> habitList;
+    private LocalDate weekStart = LocalDate.now().with(DayOfWeek.MONDAY);
 
-    // Warna Modern
-    private final Color PRIMARY_COLOR = new Color(54, 59, 78);
-    private final Color ACCENT_COLOR = new Color(100, 149, 237);
-    private final Color BG_COLOR = new Color(245, 247, 250);
+    private static final Color PASTEL_BLUE    = new Color(173, 216, 255);
+    private static final Color PASTEL_YELLOW  = new Color(244, 238, 177);
+    private static final Color BG_WHITE       = new Color(252, 252, 255);
+    private static final Color ACCENT_BLUE    = new Color(100, 180, 255);
+    private static final Color ACCENT_YELLOW  = new Color(255, 220, 100);
+    private static final Color TEXT_DARK      = new Color(40, 50, 80);
+    private static final Color RED         = new Color(255, 100, 120);
 
     public MainDashboard() {
-        setTitle("Habit & Mood Tracker");
-        setSize(1000, 700);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setupLookAndFeel();
+        initFrame();
+        habitFacade.addObserver(this);
+        loadHabitData();
+    }
+
+    private void setupLookAndFeel() {
+        try {
+            // UIManager.setLookAndFeel("com.formdev.flatlaf.FlatLightLaf");
+            UIManager.put("Button.arc", 16);
+            UIManager.put("Component.arc", 12);
+            UIManager.put("Table.rowHeight", 60);
+            UIManager.put("TitlePane.background", PASTEL_YELLOW);
+            UIManager.put("TitlePane.foreground", TEXT_DARK);
+        } catch (Exception e) {
+            System.err.println("FlatLaf tidak ditemukan!");
+        }
+    }
+
+    private void initFrame() {
+        setTitle("MoodFlow • Your Daily Habit & Mood Companion");
+        setSize(1350, 850);
+        setMinimumSize(new Dimension(1000, 600));
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
+        JTabbedPane tabs = new JTabbedPane();
+        tabs.setFont(new Font("Poppins", Font.BOLD, 17));
+        tabs.setBackground(PASTEL_YELLOW);
+        tabs.setForeground(TEXT_DARK);
+
+        tabs.addTab("Weekly Tracker", createTrackerTab());
+        tabs.addTab("Mood Logger", createMoodTab());
+        tabs.addTab("Analysis", createAnalysisTab());
+
+        add(tabs);
+    }
+
+    private JPanel createTrackerTab() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(PASTEL_YELLOW);
+        panel.setBorder(new EmptyBorder(30, 35, 35, 35));
+
+        panel.add(createHeader(), BorderLayout.NORTH);
+        panel.add(createTablePanel(), BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private Component createHeader() {
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+        header.setBorder(new EmptyBorder(0, 0, 20, 0));
+
+        JLabel title = new JLabel("My Weekly Habits");
+        title.setFont(new Font("Poppins", Font.BOLD, 36));
+        title.setForeground(TEXT_DARK);
+
+        JTextField input = new JTextField(22);
+        input.setFont(new Font("Poppins", Font.PLAIN, 16));
+
+        JButton addBtn = new JButton("Add New Habit");
+        addBtn.setBackground(PASTEL_BLUE);
+        addBtn.setForeground(TEXT_DARK);
+        addBtn.setFont(new Font("Poppins", Font.BOLD, 15));
+        addBtn.setFocusPainted(false);
+        addBtn.addActionListener(e -> {
+            String name = input.getText().trim();
+            if (!name.isEmpty()) {
+                habitFacade.addHabit(name);
+                input.setText("");
+            }
+        });
+
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        right.setOpaque(false);
+        right.add(new JLabel("New habit: "));
+        right.add(input);
+        right.add(Box.createHorizontalStrut(10));
+        right.add(addBtn);
+
+        header.add(title, BorderLayout.WEST);
+        header.add(right, BorderLayout.EAST);
+        return header;
+    }
+
+    private JScrollPane createTablePanel() {
+        setupTable();
+        JScrollPane scroll = new JScrollPane(habitTable);
+        scroll.setBorder(BorderFactory.createLineBorder(PASTEL_BLUE, 3, true));
+        scroll.getViewport().setBackground(PASTEL_BLUE);
+        return scroll;
+    }
+
+    private void setupTable() {
+        String[] columns = {"No", "Habit Name", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", ""};
+        tableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public Class<?> getColumnClass(int columnIndex) {
+                return columnIndex >= 2 && columnIndex <= 8 ? Boolean.class : String.class;
+            }
+
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return column >= 2 && column <= 8;
+            }
+        };
+
+        habitTable = new JTable(tableModel);
+        habitTable.setRowHeight(65);
+        habitTable.setFont(new Font("Poppins", Font.PLAIN, 16));
+        habitTable.setGridColor(PASTEL_BLUE);
+        habitTable.setShowGrid(true);
+
+        // Header
+        habitTable.getTableHeader().setBackground(PASTEL_BLUE);
+        habitTable.getTableHeader().setForeground(TEXT_DARK);
+        habitTable.getTableHeader().setFont(new Font("Poppins", Font.BOLD, 15));
+
+        // Semua Kolom Hari Menggunakan Checkbox
+        for (int i = 2; i <= 8; i++) {
+            habitTable.getColumnModel().getColumn(i).setCellRenderer(habitTable.getDefaultRenderer(Boolean.class));
+            habitTable.getColumnModel().getColumn(i).setCellEditor(habitTable.getDefaultEditor(Boolean.class));
+            habitTable.getColumnModel().getColumn(i).setPreferredWidth(90);
+            habitTable.getColumnModel().getColumn(i).setMaxWidth(100);
+        }
+
+        // Kolom Delete
+        TableColumn deleteCol = habitTable.getColumnModel().getColumn(9);
+        deleteCol.setMaxWidth(70);
+        deleteCol.setCellRenderer((table, value, isSelected, hasFocus, row, column) -> {
+            JButton btn = new JButton("×");
+            btn.setFont(new Font("Poppins", Font.BOLD, 24));
+            btn.setForeground(RED);
+            btn.setBackground(BG_WHITE);
+            btn.setFocusPainted(false);
+            btn.setBorderPainted(false);
+            btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            return btn;
+        });
+
+        // Add a mouse listener to the table to handle delete button clicks
+        habitTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                int row = habitTable.rowAtPoint(evt.getPoint());
+                int col = habitTable.columnAtPoint(evt.getPoint());
+                if (row >= 0 && col == 9) {
+                    confirmAndDelete(row);
+                }
+            }
+        });
+
+        // Listener checkbox
+        tableModel.addTableModelListener(e -> {
+            if (e.getColumn() >= 2 && e.getColumn() <= 8 && e.getType() == TableModelEvent.UPDATE) {
+                int row = e.getFirstRow();
+                int dayIndex = e.getColumn() - 2;
+                boolean done = Boolean.TRUE.equals(tableModel.getValueAt(row, e.getColumn()));
+                Habit h = habitList.get(row);
+                LocalDate date = weekStart.plusDays(dayIndex);
+                habitFacade.updateHabitStatus(h.getId(), date, done);
+            }
+        });
+    }
+
+    private void confirmAndDelete(int row) {
+        Habit h = habitList.get(row);
         
-        // Tentukan tanggal awal minggu (Senin)
-        startOfWeek = LocalDate.now().with(DayOfWeek.MONDAY);
+        int choice = JOptionPane.showConfirmDialog(
+            this,
+            "Are you sure want to delete this habit?\n\n" +
+            "Habit: " + h.getName() + "\n" +
+            "This action cannot be undone.",
+            "Delete Habit",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE
+        );
 
-        JTabbedPane tabbedPane = new JTabbedPane();
-        tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        tabbedPane.addTab("Weekly Tracker", createTrackerPanel());
-        tabbedPane.addTab("Mood Logger", createMoodPanel());
-        tabbedPane.addTab("Analysis", createAnalysisPanel());
+        if (choice == JOptionPane.YES_OPTION) {
+            habitFacade.deleteHabit(h.getId());
+        }
+    }
 
-        add(tabbedPane);
+    // Mood Tab
+    private JPanel createMoodTab() {
+        JPanel p = new JPanel(new GridBagLayout());
+        p.setBackground(PASTEL_BLUE);
 
-        habitFacade.addObserver(this);
-        
-        // Load data pertama kali
-        loadHabitData();
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(25, 25, 25, 25);
+
+        JLabel title = new JLabel("How are you feeling today?");
+        title.setFont(new Font("Poppins", Font.BOLD, 34));
+        title.setForeground(TEXT_DARK);
+        gbc.gridwidth = 5; gbc.gridx = 0; gbc.gridy = 0;
+        p.add(title, gbc);
+
+        String[] labels = {"Crying", "Sad", "Neutral", "Happy", "Excited"};
+        String[] emojis = {"😭", "😞", "😐", "😊", "😄"}; // Unicode emoji characters
+        Color[] colors = {
+            new Color(255, 150, 150), new Color(255, 200, 150),
+            new Color(255, 230, 150), PASTEL_YELLOW, new Color(180, 255, 180)
+        };
+
+        gbc.gridwidth = 1; gbc.gridy = 1;
+        for (int i = 0; i < 5; i++) {
+            final int val = i + 1;
+            JButton b = new JButton("<html><center><font size=+20>" + emojis[i] + "</font><br><b>" + labels[i] + "</b></center></html>");
+            b.setPreferredSize(new Dimension(170, 170));
+            b.setBackground(colors[i]);
+            b.setForeground(TEXT_DARK);
+            b.setFont(new Font("Poppins", Font.BOLD, 18));
+            b.setFocusPainted(false);
+            b.addActionListener(e -> {
+                moodFacade.addMood(val, LocalDate.now().toString());
+                JOptionPane.showMessageDialog(this, "Mood recorded! Keep going!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            });
+            gbc.gridx = i;
+            p.add(b, gbc);
+        }
+        return p;
+    }
+
+    private JPanel createAnalysisTab() {
+        JPanel p = new JPanel(new BorderLayout());
+        p.setBackground(PASTEL_YELLOW);
+        p.setBorder(new EmptyBorder(80, 80, 80, 80));
+
+        JLabel lbl = new JLabel("<html><h1>Analysis & Charts Coming Next!</h1><p>Get ready for beautiful insights...</p></html>");
+        lbl.setFont(new Font("Poppins", Font.BOLD, 40));
+        lbl.setForeground(ACCENT_BLUE);
+        lbl.setHorizontalAlignment(SwingConstants.CENTER);
+        p.add(lbl, BorderLayout.CENTER);
+        return p;
     }
 
     @Override
     public void onDataChanged() {
-        // Apa yang dilakukan kalau ada perubahan data? Refresh tabel!
-        loadHabitData(); 
+        SwingUtilities.invokeLater(this::loadHabitData);
     }
 
-    // --- TAB 1: WEEKLY TRACKER ---
-    private JPanel createTrackerPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(BG_COLOR);
-
-        // Setup Tabel
-        String[] columns = {"Habit", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"};
-
-        tableModel = new DefaultTableModel(columns, 0) {
-            @Override
-            public Class<?> getColumnClass(int columnIndex) {
-                return columnIndex == 0 ? String.class : Boolean.class;
-            }
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return column != 0; // Kolom nama habit (0) tidak bisa diedit langsung (harus klik kanan)
-            }
-        };
-
-        table = new JTable(tableModel);
-        table.setRowHeight(40);
-        table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 14));
-        table.getTableHeader().setBackground(PRIMARY_COLOR);
-        table.getTableHeader().setForeground(Color.WHITE);
-        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-
-        // --- FITUR 1: KLIK KANAN (CONTEXT MENU) ---
-        JPopupMenu popupMenu = new JPopupMenu();
-        JMenuItem editItem = new JMenuItem("Ubah Nama Habit");
-        JMenuItem deleteItem = new JMenuItem("Hapus Habit");
-        
-        // Ikon opsional (kalau mau tampilan lebih bagus, bisa dihapus kalau error)
-        // editItem.setIcon(UIManager.getIcon("FileView.fileIcon")); 
-
-        editItem.addActionListener(e -> actionEditHabit());
-        deleteItem.addActionListener(e -> actionDeleteHabit());
-
-        popupMenu.add(editItem);
-        popupMenu.add(deleteItem);
-        
-        // Pasang menu ke tabel
-        table.setComponentPopupMenu(popupMenu);
-
-        // Agar saat klik kanan, barisnya juga terpilih (selected)
-        table.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                if (e.isPopupTrigger()) {
-                    int row = table.rowAtPoint(e.getPoint());
-                    if (row >= 0 && row < table.getRowCount()) {
-                        table.setRowSelectionInterval(row, row);
-                    }
-                }
-            }
-        });
-
-        // Listener Checkbox
-        tableModel.addTableModelListener(e -> {
-            if (e.getColumn() > 0 && e.getType() == javax.swing.event.TableModelEvent.UPDATE) {
-                int row = e.getFirstRow();
-                int col = e.getColumn();
-                
-                // Cegah error index out of bounds saat refresh data
-                if (row < habitList.size()) { 
-                    boolean isChecked = (boolean) tableModel.getValueAt(row, col);
-                    Habit h = habitList.get(row);
-                    LocalDate targetDate = startOfWeek.plusDays(col - 1);
-                    
-                    habitFacade.updateHabitStatus(h.getId(), targetDate, isChecked);
-                }
-            }
-        });
-
-        JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
-        // Panel Input
-        JPanel inputPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JTextField txtHabit = new JTextField(20);
-        JButton btnAdd = new JButton("Tambah Habit");
-        styleButton(btnAdd);
-
-        btnAdd.addActionListener(e -> {
-            if (!txtHabit.getText().isEmpty()) {
-                habitFacade.addHabit(txtHabit.getText());
-                txtHabit.setText("");
-            }
-        });
-
-        inputPanel.add(new JLabel("Habit Baru: "));
-        inputPanel.add(txtHabit);
-        inputPanel.add(btnAdd);
-
-        panel.add(inputPanel, BorderLayout.NORTH);
-        panel.add(scrollPane, BorderLayout.CENTER);
-        return panel;
-    }
-
-    // --- LOGIC LOAD DATA ---
     private void loadHabitData() {
-        // Kosongkan tabel
         tableModel.setRowCount(0);
-        
-        // Ambil data terbaru dari database
         habitList = habitFacade.getHabits();
-
+        int no = 1;
         for (Habit h : habitList) {
-            Object[] rowData = new Object[8];
-            rowData[0] = h.getName();
-
-            // Cek status ceklis
+            Object[] row = new Object[10];
+            row[0] = no++;
+            row[1] = h.getName();
             for (int i = 0; i < 7; i++) {
-                LocalDate dateCheck = startOfWeek.plusDays(i);
-                rowData[i + 1] = habitFacade.getHabitStatus(h.getId(), dateCheck);
+                row[i + 2] = habitFacade.getHabitStatus(h.getId(), weekStart.plusDays(i));
             }
-            tableModel.addRow(rowData);
+            row[9] = "Delete";
+            tableModel.addRow(row);
         }
-    }
-
-    // --- LOGIC EDIT & DELETE ---
-    
-    private void actionEditHabit() {
-        int selectedRow = table.getSelectedRow();
-        if (selectedRow != -1) {
-            Habit selectedHabit = habitList.get(selectedRow);
-            
-            // Tampilkan Popup Input
-            String newName = JOptionPane.showInputDialog(this, 
-                    "Edit Nama Habit:", 
-                    selectedHabit.getName());
-
-            if (newName != null && !newName.trim().isEmpty()) {
-                habitFacade.updateHabit(selectedHabit.getId(), newName);
-                loadHabitData(); // Refresh UI
-                JOptionPane.showMessageDialog(this, "Berhasil diupdate!");
-            }
-        }
-    }
-
-    private void actionDeleteHabit() {
-        int selectedRow = table.getSelectedRow();
-        if (selectedRow != -1) {
-            Habit selectedHabit = habitList.get(selectedRow);
-
-            int confirm = JOptionPane.showConfirmDialog(this, 
-                    "Yakin ingin menghapus habit '" + selectedHabit.getName() + "'?",
-                    "Konfirmasi Hapus",
-                    JOptionPane.YES_NO_OPTION);
-
-            if (confirm == JOptionPane.YES_OPTION) {
-                habitFacade.deleteHabit(selectedHabit.getId());
-                loadHabitData(); // Refresh UI
-            }
-        }
-    }
-
-    // --- TAB 2: MOOD LOGGER ---
-    private JPanel createMoodPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(BG_COLOR);
-
-        JLabel lblTitle = new JLabel("Bagaimana perasaanmu hari ini?");
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 24));
-        lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JPanel emojiPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 20));
-        emojiPanel.setBackground(BG_COLOR);
-
-        String[] emojis = {"😭", "😕", "😐", "🙂", "😀"};
-        for (int i = 0; i < emojis.length; i++) {
-            final int value = i + 1;
-            JButton btn = new JButton(emojis[i]);
-            btn.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 40));
-            btn.setFocusPainted(false);
-            btn.setBackground(Color.WHITE);
-
-            btn.addActionListener(e -> {
-                moodFacade.addMood(value, LocalDate.now().toString());
-                JOptionPane.showMessageDialog(this, "Mood tercatat!");
-            });
-            emojiPanel.add(btn);
-        }
-
-        panel.add(Box.createVerticalStrut(100));
-        panel.add(lblTitle);
-        panel.add(Box.createVerticalStrut(30));
-        panel.add(emojiPanel);
-        return panel;
-    }
-
-    // --- TAB 3: ANALYSIS ---
-    private JPanel createAnalysisPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        JTextArea area = new JTextArea();
-        area.setFont(new Font("Monospaced", Font.PLAIN, 14));
-        area.setEditable(false);
-        area.setMargin(new Insets(20, 20, 20, 20));
-        area.setText("Analisis akan muncul di sini...");
-        panel.add(new JScrollPane(area), BorderLayout.CENTER);
-        return panel;
-    }
-
-    private void styleButton(JButton btn) {
-        btn.setBackground(ACCENT_COLOR);
-        btn.setForeground(Color.WHITE);
-        btn.setFocusPainted(false);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
     }
 }

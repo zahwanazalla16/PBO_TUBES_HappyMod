@@ -2,7 +2,6 @@ package com.project.app.repository;
 
 import com.project.app.config.DatabaseConnection;
 import com.project.app.model.Habit;
-
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -16,7 +15,7 @@ public class HabitRepository {
         conn = DatabaseConnection.getInstance().getConnection();
     }
 
-    // --- CREATE ---
+    // CREATE
     public boolean createHabit(Habit habit) {
         String sql = "INSERT INTO habits (name) VALUES (?)";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -29,14 +28,13 @@ public class HabitRepository {
         }
     }
 
-    // --- READ (Single) - INI YANG TADI ERROR ---
+    // READ (Single)
     public Habit getHabitById(int id) {
         String sql = "SELECT * FROM habits WHERE id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
-                // Perhatikan: Constructor Habit sekarang cuma (id, name)
                 return new Habit(
                         rs.getInt("id"),
                         rs.getString("name")
@@ -48,7 +46,7 @@ public class HabitRepository {
         return null;
     }
 
-    // --- READ (All) ---
+    // READ (All)
     public List<Habit> getAllHabits() {
         List<Habit> habits = new ArrayList<>();
         String sql = "SELECT * FROM habits ORDER BY id ASC";
@@ -67,7 +65,7 @@ public class HabitRepository {
         return habits;
     }
 
-    // --- UPDATE ---
+    // UPDATE
     public boolean updateHabit(Habit habit) {
         // Hapus update description, sisa name saja
         String sql = "UPDATE habits SET name = ? WHERE id = ?";
@@ -82,7 +80,7 @@ public class HabitRepository {
         }
     }
 
-    // --- DELETE ---
+    // DELETE
     public boolean deleteHabit(int id) {
         String sql = "DELETE FROM habits WHERE id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
