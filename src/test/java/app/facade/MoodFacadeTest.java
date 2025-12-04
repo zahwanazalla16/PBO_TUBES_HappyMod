@@ -11,6 +11,7 @@ import app.repository.MoodRepository;
 
 // Import Java Utilities
 import java.time.LocalDate;
+import java.util.List; // Penting: Pakai List generic
 
 // Import JUnit & Mockito
 import static org.junit.jupiter.api.Assertions.*;
@@ -55,9 +56,7 @@ class MoodFacadeTest {
         moodFacade.saveMood(validMood, today);
 
         // VERIFIKASI
-        // Pastikan fungsi upsertMood dipanggil dengan parameter yang benar
         verify(repoMock, times(1)).upsertMood(validMood, today);
-        // Pastikan Observer diberitahu
         verify(observerMock, times(1)).onDataChanged();
     }
 
@@ -71,9 +70,7 @@ class MoodFacadeTest {
         moodFacade.saveMood(invalidMood, today);
 
         // VERIFIKASI
-        // Repo tidak boleh dipanggil karena validasi di Facade mencegahnya
         verify(repoMock, never()).upsertMood(anyInt(), any());
-        // Observer jangan bunyi
         verify(observerMock, never()).onDataChanged();
     }
 
@@ -128,18 +125,21 @@ class MoodFacadeTest {
         assertEquals(0, moodFacade.getActivityLog().size());
 
         // 2. Lakukan Aksi Save Mood
-        moodFacade.saveMood(5, date); // Input Mood: Sangat Baik
+        moodFacade.saveMood(5, date); 
         
         // 3. Cek LinkedList
-        java.util.LinkedList<String> log = moodFacade.getActivityLog();
+        // PERBAIKAN DISINI: Gunakan Interface List, bukan LinkedList
+        List<String> log = moodFacade.getActivityLog();
         
         // Validasi Ukuran
         assertEquals(1, log.size(), "Log harusnya berisi 1 item");
         
-        // Validasi Konten (Pastikan format stringnya mengandung kata kunci)
-        // Format di Facade: "Input Mood: ... (tgl)"
-        assertTrue(log.getLast().contains("Input Mood"), "Isi log harus mengandung 'Input Mood'");
-        assertTrue(log.getLast().contains("😊") || log.getLast().contains("😄"), "Harus ada emojinya (tergantung array)");
+        // Validasi Konten
+        // PERBAIKAN DISINI: List tidak punya .getLast(), pakai .get(size - 1)
+        String lastEntry = log.get(log.size() - 1);
+
+        assertTrue(lastEntry.contains("Input Mood"), "Isi log harus mengandung 'Input Mood'");
+        assertTrue(lastEntry.contains("😊") || lastEntry.contains("😄"), "Harus ada emojinya");
     }
 
     @Test
@@ -152,15 +152,12 @@ class MoodFacadeTest {
         when(repoMock.getMoodByDate(testDate)).thenReturn(moodMock);
 
         // --- PEMANGGILAN PERTAMA (Cache Miss) ---
-        // Cache kosong -> Panggil Repo
         Mood result1 = moodFacade.getMood(testDate);
         
         assertNotNull(result1);
-        // Pastikan repo dipanggil 1 kali
         verify(repoMock, times(1)).getMoodByDate(testDate);
 
         // --- PEMANGGILAN KEDUA (Cache Hit) ---
-        // Data sudah ada di HashMap -> TIDAK BOLEH panggil Repo lagi
         Mood result2 = moodFacade.getMood(testDate);
         
         assertNotNull(result2);

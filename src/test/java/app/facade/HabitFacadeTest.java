@@ -12,7 +12,6 @@ import app.repository.HabitRepository;
 // Import Java Utilities
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
 // Import JUnit & Mockito Static
@@ -59,8 +58,8 @@ class HabitFacadeTest {
 
         // VERIFIKASI
         assertTrue(result, "Seharusnya return true");
-        verify(repositoryMock, times(1)).createHabit(any(Habit.class)); // Pastikan repo dipanggil
-        verify(observerMock, times(1)).onDataChanged(); // Observer WAJIB dipanggil
+        verify(repositoryMock, times(1)).createHabit(any(Habit.class)); 
+        verify(observerMock, times(1)).onDataChanged(); 
     }
 
     @Test
@@ -71,8 +70,8 @@ class HabitFacadeTest {
 
         // VERIFIKASI
         assertFalse(result, "Seharusnya return false karena nama kosong");
-        verify(repositoryMock, never()).createHabit(any()); // Repo tidak boleh dipanggil
-        verify(observerMock, never()).onDataChanged();      // Observer tidak boleh bunyi
+        verify(repositoryMock, never()).createHabit(any()); 
+        verify(observerMock, never()).onDataChanged();      
     }
 
     @Test
@@ -86,7 +85,7 @@ class HabitFacadeTest {
 
         // VERIFIKASI
         assertFalse(result, "Seharusnya false karena DB error");
-        verify(observerMock, never()).onDataChanged(); // Kalau gagal simpan, UI jangan diupdate
+        verify(observerMock, never()).onDataChanged(); 
     }
 
     // ==========================================
@@ -212,17 +211,22 @@ class HabitFacadeTest {
         // 2. Lakukan Aksi Tambah
         habitFacade.addHabit("Habit A");
         
-        // Cek apakah LinkedList nambah?
-        LinkedList<String> log = habitFacade.getActivityLog();
+        // --- PERBAIKAN DI SINI ---
+        // Gunakan tipe 'List' bukan 'LinkedList' karena Facade me-return 'List'
+        List<String> log = habitFacade.getActivityLog();
+        
         assertEquals(1, log.size(), "Log harusnya berisi 1 item");
-        assertTrue(log.getLast().contains("Menambahkan"), "Isi log harus benar");
+        
+        // Gunakan .get(size - 1) sebagai pengganti .getLast()
+        // karena interface 'List' tidak punya method .getLast()
+        assertTrue(log.get(log.size() - 1).contains("Menambahkan"), "Isi log harus benar");
 
         // 3. Lakukan Aksi Hapus
         habitFacade.deleteHabit(1);
 
         // Cek lagi
         assertEquals(2, log.size(), "Log harusnya berisi 2 item");
-        assertTrue(log.getLast().contains("Menghapus"), "Isi log terakhir harus delete");
+        assertTrue(log.get(log.size() - 1).contains("Menghapus"), "Isi log terakhir harus delete");
     }
 
     @Test
@@ -235,21 +239,16 @@ class HabitFacadeTest {
         when(repositoryMock.getHabitById(testId)).thenReturn(habitMock);
 
         // --- PEMANGGILAN PERTAMA (Cache Miss) ---
-        // Karena cache kosong, dia harus nanya ke Repository (DB)
         Habit result1 = habitFacade.getHabit(testId);
         
         assertNotNull(result1);
-        // Pastikan repo dipanggil 1 kali
         verify(repositoryMock, times(1)).getHabitById(testId);
 
         // --- PEMANGGILAN KEDUA (Cache Hit) ---
-        // Sekarang data harusnya sudah ada di HashMap
         Habit result2 = habitFacade.getHabit(testId);
         
         assertNotNull(result2);
-        // POIN PENTING: Verify tetap times(1). 
-        // Artinya pada panggilan kedua, dia TIDAK memanggil repositoryMock lagi.
-        // Dia ambil langsung dari HashMap.
+        // Verify times(1) artinya tidak nambah panggilan ke repo, berarti cache jalan
         verify(repositoryMock, times(1)).getHabitById(testId);
     }
 }

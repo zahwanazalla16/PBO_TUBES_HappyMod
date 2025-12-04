@@ -7,11 +7,16 @@ import java.sql.*;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.EnumMap; // [BARU] Import EnumMap
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class AnalysisRepository {
+    
+    // 1. Setup Logger
+    private static final Logger LOGGER = Logger.getLogger(AnalysisRepository.class.getName());
     private final Connection conn;
 
     public AnalysisRepository() {
@@ -29,7 +34,8 @@ public class AnalysisRepository {
                 dates.add(rs.getDate("date").toLocalDate());
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            // 2. Ganti printStackTrace dengan Logger
+            LOGGER.log(Level.SEVERE, "Error getting mood dates", e);
         }
         return dates;
     }
@@ -46,7 +52,7 @@ public class AnalysisRepository {
                 dates.add(rs.getDate("date").toLocalDate());
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Error getting habit completed dates", e);
         }
         return dates;
     }
@@ -74,7 +80,7 @@ public class AnalysisRepository {
                 return rs.getDouble(1);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Error calculating average mood", e);
         }
         return 0.0;
     }
@@ -87,7 +93,7 @@ public class AnalysisRepository {
                 return new Habit(rs.getInt("id"), rs.getString("name"));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Error getting random habit", e);
         }
         return null;
     }
@@ -103,7 +109,7 @@ public class AnalysisRepository {
                 return rs.getInt(1);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Error counting habit logs", e);
         }
         return 0;
     }
@@ -129,13 +135,16 @@ public class AnalysisRepository {
                 habitNames.add(rs.getString("name"));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Error getting habits by mood", e);
         }
         return habitNames;
     }
 
     public Map<DayOfWeek, Double> getAverageMoodByDayOfWeek(LocalDate startDate, LocalDate endDate) {
-        Map<DayOfWeek, Double> moodByDay = new HashMap<>();
+        // [PERBAIKAN UTAMA SONARQUBE]
+        // Menggunakan EnumMap alih-alih HashMap karena Key-nya adalah Enum (DayOfWeek)
+        Map<DayOfWeek, Double> moodByDay = new EnumMap<>(DayOfWeek.class);
+        
         // In PostgreSQL, EXTRACT(ISODOW FROM date) returns 1 for Monday through 7 for Sunday.
         String sql = "SELECT EXTRACT(ISODOW FROM date) as day_of_week, AVG(mood_value) as avg_mood " +
                      "FROM mood " +
@@ -150,7 +159,7 @@ public class AnalysisRepository {
                 moodByDay.put(day, rs.getDouble("avg_mood"));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Error getting average mood by day", e);
         }
         return moodByDay;
     }

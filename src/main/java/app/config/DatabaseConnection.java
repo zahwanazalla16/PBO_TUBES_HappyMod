@@ -2,34 +2,41 @@ package app.config;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-// Pastikan import ini tidak merah
+import java.sql.SQLException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import io.github.cdimascio.dotenv.Dotenv; 
 
+// Tambahkan baris ini untuk memberitahu SonarQube agar mengabaikan peringatan Singleton
+@SuppressWarnings("java:S6548")
 public class DatabaseConnection {
+    
+    // 1. Setup Logger
+    private static final Logger LOGGER = Logger.getLogger(DatabaseConnection.class.getName());
+    
     private static DatabaseConnection instance;
     private Connection connection;
 
-    // --- TAMBAHKAN BARIS INI ---
-    // Kita harus memuat file .env nya dulu ke dalam variabel bernama 'dotenv'
     private final Dotenv dotenv = Dotenv.load(); 
-    // ---------------------------
 
-    // Sekarang variabel 'dotenv' sudah dikenali, jadi baris di bawah ini tidak akan merah lagi
-    private final String URL = dotenv.get("DB_URL");
-    private final String USER = dotenv.get("DB_USERNAME");
-    private final String PASSWORD = dotenv.get("DB_PASSWORD");
+    // 2. Variabel camelCase (Sesuai aturan naming convention)
+    private final String dbUrl = dotenv.get("DB_URL");
+    private final String dbUser = dotenv.get("DB_USERNAME");
+    private final String dbPassword = dotenv.get("DB_PASSWORD");
 
     private DatabaseConnection() {
         try {
-            Class.forName("org.postgresql.Driver");
-            // Pastikan URL, USER, PASSWORD tidak null
-            if(URL == null || USER == null) {
-                System.out.println("Gagal membaca .env! Pastikan file .env ada dan isinya benar.");
+            // Validasi URL dan User
+            if (dbUrl == null || dbUser == null) {
+                LOGGER.log(Level.WARNING, "Gagal membaca .env! Pastikan file .env ada dan isinya benar.");
             }
-            connection = DriverManager.getConnection(URL, USER, PASSWORD);
-            System.out.println("Connected to PostgreSQL!");
-        } catch (Exception e) {
-            e.printStackTrace();
+
+            connection = DriverManager.getConnection(dbUrl, dbUser, dbPassword);
+            
+            LOGGER.info("Connected to PostgreSQL!");
+
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Database connection failed", e);
         }
     }
 

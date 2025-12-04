@@ -1,6 +1,5 @@
 package app.service;
 
-import app.model.Habit;
 import app.repository.AnalysisRepository;
 
 import java.time.LocalDate;
@@ -17,8 +16,7 @@ public class AnalysisService {
     public AnalysisService() {
         this.analysisRepository = new AnalysisRepository();
         
-        // Initialize the pool using Method References
-        // Logika detailnya sekarang dibungkus dalam generic flow
+        // Method Reference digunakan di sini untuk inisialisasi
         this.analysisPool = Arrays.asList(
             this::analyzeHabitConsistency,
             this::analyzeHabitsWithHighMood,
@@ -46,47 +44,34 @@ public class AnalysisService {
         return analyses;
     }
 
-    // ==================================================================================
     // 🟢 GENERIC METHOD CORE
-    // ==================================================================================
-    
-    /**
-     * Metode Generic untuk menjalankan analisis.
-     * @param <T> Tipe data yang akan dianalisis (bisa Habit, List, Map, dll).
-     * @param dataSupplier Fungsi untuk mengambil data dari repository.
-     * @param validator Fungsi untuk mengecek validitas data (misal: null check, empty check).
-     * @param resultFormatter Fungsi untuk mengubah data T menjadi String output.
-     * @return String hasil analisis atau null jika data tidak valid.
-     */
     private <T> String executeAnalysis(Supplier<T> dataSupplier, 
                                        Predicate<T> validator, 
                                        Function<T, String> resultFormatter) {
         try {
             T data = dataSupplier.get();
-            // Generic check: Jika data valid menurut validator, lakukan formatting
             if (validator.test(data)) {
                 return resultFormatter.apply(data);
             }
         } catch (Exception e) {
-            e.printStackTrace(); // Log error jangan sampai crash UI
+            // Sebaiknya gunakan Logger, tapi untuk sekarang printStackTrace 
+            // bisa diabaikan jika belum setup Logger di sini
+            e.printStackTrace(); 
         }
-        return null; // Return null jika data tidak valid atau error
+        return null;
     }
 
-    // ==================================================================================
-    // IMPLEMENTASI MENGGUNAKAN GENERIC
-    // ==================================================================================
+    // --- IMPLEMENTASI GENERIC (Fixed Warnings) ---
 
     // 1. Kasus T = Habit
     private String analyzeHabitConsistency() {
         return executeAnalysis(
-            // Supplier: Ambil data Habit acak
-            () -> analysisRepository.getRandomHabit(),
+            // [FIX] Method Reference menggantikan lambda "() -> repo.get..."
+            analysisRepository::getRandomHabit,
             
-            // Validator: Pastikan habit tidak null
             Objects::nonNull,
             
-            // Formatter: Ubah Habit menjadi String (Logic hitung hari ada di sini)
+            // Lambda ini tetap butuh kurung kurawal karena > 1 baris
             habit -> {
                 LocalDate endDate = LocalDate.now();
                 LocalDate startDate = endDate.minusDays(6);
@@ -97,7 +82,7 @@ public class AnalysisService {
                     return String.format("Konsistensi: '%s' dilakukan %d dari 7 hari terakhir (%d%%).",
                             habit.getName(), count, percentage);
                 }
-                return null; // Akan difilter di getSevenRandomAnalyses
+                return null; 
             }
         );
     }
@@ -105,16 +90,11 @@ public class AnalysisService {
     // 2. Kasus T = List<String>
     private String analyzeHabitsWithHighMood() {
         return executeAnalysis(
-            // Supplier: Ambil List nama habit
             () -> {
                 LocalDate end = LocalDate.now();
                 return analysisRepository.getHabitsByMood(true, 3, end.minusWeeks(1), end);
             },
-            
-            // Validator: List tidak boleh kosong
             list -> !list.isEmpty(),
-            
-            // Formatter: Join list jadi string
             list -> "Saat mood sedang baik, Anda sering melakukan: " + String.join(", ", list) + "."
         );
     }
@@ -134,25 +114,21 @@ public class AnalysisService {
     // 4. Kasus T = Map<DayOfWeek, Double>
     private String analyzeHighestMoodDay() {
         return executeAnalysis(
-            // Supplier
             () -> {
                 LocalDate end = LocalDate.now();
                 return analysisRepository.getAverageMoodByDayOfWeek(end.minusWeeks(1), end);
             },
             
-            // Validator
             map -> !map.isEmpty(),
             
-            // Formatter
-            map -> {
-                return map.entrySet().stream()
+            // [FIX] Hapus "{ return ... }" karena isinya cuma 1 statement (stream chain)
+            map -> map.entrySet().stream()
                     .max(Map.Entry.comparingByValue())
                     .map(entry -> {
                         String dayName = entry.getKey().getDisplayName(TextStyle.FULL, new Locale("id", "ID"));
                         return "Pola mingguan menunjukkan mood tertinggi Anda sering terjadi pada hari " + dayName + ".";
                     })
-                    .orElse(null);
-            }
+                    .orElse(null)
         );
     }
 
@@ -164,15 +140,15 @@ public class AnalysisService {
                 return analysisRepository.getAverageMoodByDayOfWeek(end.minusWeeks(1), end);
             },
             map -> !map.isEmpty(),
-            map -> {
-                return map.entrySet().stream()
+            
+            // [FIX] Hapus "{ return ... }"
+            map -> map.entrySet().stream()
                     .min(Map.Entry.comparingByValue())
                     .map(entry -> {
                         String dayName = entry.getKey().getDisplayName(TextStyle.FULL, new Locale("id", "ID"));
                         return "Hari " + dayName + " cenderung menjadi hari yang lebih berat untuk Anda minggu ini.";
                     })
-                    .orElse(null);
-            }
+                    .orElse(null)
         );
     }
 
@@ -191,13 +167,15 @@ public class AnalysisService {
     // 7. Kasus T = Habit (Saran Konsistensi)
     private String generateConsistencyRecommendation() {
         return executeAnalysis(
-            () -> analysisRepository.getRandomHabit(),
+            // [FIX] Method Reference
+            analysisRepository::getRandomHabit,
+            
             Objects::nonNull,
+            
             habit -> {
                 LocalDate end = LocalDate.now();
                 int count = analysisRepository.countHabitLogs(habit.getId(), end.minusDays(6), end);
                 
-                // Logic spesifik
                 if (count > 0 && count < 3) {
                     return String.format("Saran: Untuk meningkatkan mood, coba tingkatkan frekuensi '%s' menjadi 4x/minggu.", habit.getName());
                 }

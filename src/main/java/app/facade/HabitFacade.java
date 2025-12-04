@@ -37,7 +37,7 @@ public class HabitFacade {
         }
     }
 
-    public LinkedList<String> getActivityLog() {
+    public List<String> getActivityLog() {
         return activityLog;
     }
 

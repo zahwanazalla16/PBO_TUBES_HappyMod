@@ -17,8 +17,10 @@ import javax.swing.border.EmptyBorder;
 
 public class MainDashboard extends JFrame {
 
-    private final MoodFacade moodFacade = new MoodFacade();
-    private final AnalysisService analysisService = new AnalysisService();
+    // [FIX 1] Tambahkan 'transient' agar aman saat serialisasi (meski jarang dipakai di desktop app)
+    private final transient MoodFacade moodFacade = new MoodFacade();
+    private final transient AnalysisService analysisService = new AnalysisService();
+    
     private LocalDate weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
     
     private JPanel analysisContentPanel;
@@ -27,12 +29,15 @@ public class MainDashboard extends JFrame {
     private static final Color BG_MAIN = Color.WHITE;
     private static final Color TEXT_DARK = new Color(33, 37, 41);
     private static final Color ACCENT_BROWN = new Color(139, 115, 85);
-    private static final Color HEADER_BG = new Color(33, 33, 33); // Dark Gray/Black untuk Header Dashboard
+    private static final Color HEADER_BG = new Color(33, 33, 33);
     
     private static final Color GRAPH_LINE = new Color(139, 115, 85);
     private static final Color GRAPH_POINT = new Color(220, 53, 69);
     private static final Color GRID_COLOR = new Color(230, 230, 230);
     private static final Color ACCENT_BLUE = new Color(13, 110, 253);
+
+    // [FIX 2] Konstanta untuk Font agar tidak duplikasi string
+    private static final String FONT_POPPINS = "Poppins";
 
     public MainDashboard() {
         setTitle("MoodFlow • Dashboard");
@@ -42,58 +47,51 @@ public class MainDashboard extends JFrame {
         getContentPane().setBackground(BG_MAIN);
         setLayout(new BorderLayout());
 
-        // Panel Utara: Gabungan Dashboard Banner + Header Mingguan (Original Style)
         JPanel northContainer = new JPanel();
         northContainer.setLayout(new BoxLayout(northContainer, BoxLayout.Y_AXIS));
-        northContainer.setBackground(BG_MAIN); // Pastikan background container putih agar tidak ada kotak abu-abu
+        northContainer.setBackground(BG_MAIN);
         
-        northContainer.add(createTopDashboardBanner()); 
-        northContainer.add(createWeeklyHeader());      
+        northContainer.add(createTopDashboardBanner());
+        northContainer.add(createWeeklyHeader());       
         
         add(northContainer, BorderLayout.NORTH);
         add(new MoodGraphPanel(), BorderLayout.CENTER);
         add(createBottomPanel(), BorderLayout.SOUTH);
         add(createAnalysisPanel(), BorderLayout.EAST);
         
-        // Initial load of analyses
+        // [FIX 3] Hapus 'this::' jika memicu warning, atau biarkan jika sonarqube meminta method reference
         SwingUtilities.invokeLater(this::loadRandomAnalyses);
     }
 
-    // --- BAGIAN BARU: TOP BANNER DASHBOARD ---
     private JPanel createTopDashboardBanner() {
-        // Menggunakan BorderLayout agar panel merentang penuh ke samping
         JPanel banner = new JPanel(new BorderLayout());
         banner.setBackground(HEADER_BG);
-        banner.setBorder(new EmptyBorder(15, 0, 15, 0)); // Padding atas bawah
+        banner.setBorder(new EmptyBorder(15, 0, 15, 0));
         
-        JLabel lblDashboard = new JLabel("DASHBOARD", SwingConstants.CENTER); // Center text
-        lblDashboard.setFont(new Font("Poppins", Font.BOLD, 48)); 
+        JLabel lblDashboard = new JLabel("DASHBOARD", SwingConstants.CENTER);
+        // [FIX 2] Gunakan konstanta font
+        lblDashboard.setFont(new Font(FONT_POPPINS, Font.BOLD, 48)); 
         lblDashboard.setForeground(Color.WHITE); 
         
         banner.add(lblDashboard, BorderLayout.CENTER);
         return banner;
     }
 
-    // --- BAGIAN HEADER MINGGUAN (KEMBALI KE ORIGINAL) ---
     private JPanel createWeeklyHeader() {
-        // Kembali menggunakan BorderLayout seperti kode awal agar full-width dan rata kiri
         JPanel header = new JPanel(new BorderLayout());
         header.setBackground(BG_MAIN);
         header.setBorder(new EmptyBorder(30, 40, 10, 40)); 
 
-        // 1. Title Weekly Mood Analysis
         JLabel title = new JLabel("Weekly Mood Analysis");
-        title.setFont(new Font("Poppins", Font.BOLD, 36)); 
+        title.setFont(new Font(FONT_POPPINS, Font.BOLD, 36)); 
         title.setForeground(TEXT_DARK);
 
-        // 2. Subtitle Date Range
         JLabel subtitle = new JLabel("Overview of your emotional journey this week (" + 
                 weekStart.format(DateTimeFormatter.ofPattern("dd MMM")) + " - " + 
                 weekStart.plusDays(6).format(DateTimeFormatter.ofPattern("dd MMM")) + ")");
-        subtitle.setFont(new Font("Poppins", Font.PLAIN, 16));
+        title.setFont(new Font(FONT_POPPINS, Font.PLAIN, 16));
         subtitle.setForeground(Color.GRAY);
 
-        // Add components using BorderLayout positions to ensure correct alignment
         header.add(title, BorderLayout.NORTH);
         header.add(subtitle, BorderLayout.SOUTH);
 
@@ -106,27 +104,26 @@ public class MainDashboard extends JFrame {
         panel.setBorder(new EmptyBorder(20, 0, 40, 0));
 
         JButton btnOpenTracker = new JButton("Manage Habits & Log Mood");
-        btnOpenTracker.setFont(new Font("Poppins", Font.BOLD, 18));
+        btnOpenTracker.setFont(new Font(FONT_POPPINS, Font.BOLD, 18));
         btnOpenTracker.setBackground(ACCENT_BROWN);
         btnOpenTracker.setForeground(Color.WHITE);
         btnOpenTracker.setFocusPainted(false);
         btnOpenTracker.setBorder(new EmptyBorder(15, 30, 15, 30));
         btnOpenTracker.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        btnOpenTracker.addActionListener(e -> {
-            SwingUtilities.invokeLater(() -> {
-                WeeklyTrackerView tracker = new WeeklyTrackerView();
-                tracker.setVisible(true);
-                
-                tracker.addWindowListener(new java.awt.event.WindowAdapter() {
-                    @Override
-                    public void windowClosed(java.awt.event.WindowEvent windowEvent) {
-                        repaint(); // Refresh graph
-                        loadRandomAnalyses(); // Refresh analyses
-                    }
-                });
+        // [FIX 3] Hapus kurung kurawal yang tidak perlu di lambda
+        btnOpenTracker.addActionListener(e -> SwingUtilities.invokeLater(() -> {
+            WeeklyTrackerView tracker = new WeeklyTrackerView();
+            tracker.setVisible(true);
+            
+            tracker.addWindowListener(new java.awt.event.WindowAdapter() {
+                @Override
+                public void windowClosed(java.awt.event.WindowEvent windowEvent) {
+                    repaint(); 
+                    loadRandomAnalyses(); 
+                }
             });
-        });
+        }));
 
         panel.add(btnOpenTracker);
         return panel;
@@ -138,12 +135,11 @@ public class MainDashboard extends JFrame {
         panel.setBorder(new EmptyBorder(30, 20, 30, 30)); 
         panel.setPreferredSize(new Dimension(360, 0));
 
-        // Header (Title + Reload Button)
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(BG_MAIN);
 
         JLabel title = new JLabel("Habit and Mood Analysis");
-        title.setFont(new Font("Poppins", Font.BOLD, 20));
+        title.setFont(new Font(FONT_POPPINS, Font.BOLD, 20));
         title.setForeground(TEXT_DARK);
         
         JLabel reloadLabel = new JLabel("↻");
@@ -163,7 +159,6 @@ public class MainDashboard extends JFrame {
         
         panel.add(headerPanel, BorderLayout.NORTH);
 
-        // Content Panel
         analysisContentPanel = new JPanel();
         analysisContentPanel.setLayout(new BoxLayout(analysisContentPanel, BoxLayout.Y_AXIS));
         analysisContentPanel.setBackground(BG_MAIN);
@@ -171,8 +166,10 @@ public class MainDashboard extends JFrame {
         JScrollPane scrollPane = new JScrollPane(analysisContentPanel);
         scrollPane.setBorder(null);
         scrollPane.setBackground(BG_MAIN);
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        
+        // [FIX 4] Gunakan ScrollPaneConstants secara static access
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
         panel.add(scrollPane, BorderLayout.CENTER);
 
@@ -201,7 +198,7 @@ public class MainDashboard extends JFrame {
 
     private JTextArea createAnalysisTextArea(String text) {
         JTextArea textArea = new JTextArea(text);
-        textArea.setFont(new Font("Poppins", Font.PLAIN, 14));
+        textArea.setFont(new Font(FONT_POPPINS, Font.PLAIN, 14));
         textArea.setForeground(TEXT_DARK);
         textArea.setLineWrap(true);       
         textArea.setWrapStyleWord(true);  
@@ -212,7 +209,6 @@ public class MainDashboard extends JFrame {
         return textArea;
     }
 
-    // --- CUSTOM COMPONENT: MOOD GRAPH PANEL ---
     private class MoodGraphPanel extends JPanel {
         
         public MoodGraphPanel() {
@@ -229,19 +225,20 @@ public class MainDashboard extends JFrame {
             int w = getWidth();
             int h = getHeight();
             int padding = 60;
-            int graphW = w - (2 * padding);
-            int graphH = h - (2 * padding);
+            // [FIX 5] Cast ke double untuk menghindari integer division yang tidak presisi, walau di sini int cukup
+            // Tapi untuk amannya dan menghilangkan warning:
+            double graphW = (double) w - (2 * padding);
+            double graphH = (double) h - (2 * padding);
 
-            // Draw Axes
             g2.setColor(Color.LIGHT_GRAY);
             g2.setStroke(new BasicStroke(2));
-            g2.drawLine(padding, h - padding, padding, padding); // Y Axis
-            g2.drawLine(padding, h - padding, w - padding, h - padding); // X Axis
+            g2.drawLine(padding, h - padding, padding, padding); 
+            g2.drawLine(padding, h - padding, w - padding, h - padding); 
 
-            // Draw Grid & Emojis
             String[] emojis = {"", "😭", "😞", "😐", "😊", "😄"};
             for (int i = 1; i <= 5; i++) {
-                int y = (h - padding) - (i * graphH / 6);
+                // [FIX 5] Cast hasil kalkulasi kembali ke int
+                int y = (h - padding) - (int)((i * graphH) / 6.0);
                 g2.setColor(GRID_COLOR);
                 g2.setStroke(new BasicStroke(1));
                 g2.drawLine(padding, y, w - padding, y);
@@ -254,20 +251,21 @@ public class MainDashboard extends JFrame {
             int[] yPoints = new int[7];
             boolean[] hasData = new boolean[7];
 
-            g2.setFont(new Font("Poppins", Font.BOLD, 14));
+            g2.setFont(new Font(FONT_POPPINS, Font.BOLD, 14));
             DateTimeFormatter dayFmt = DateTimeFormatter.ofPattern("EEE");
 
-            // Plot Points
             for (int i = 0; i < 7; i++) {
                 LocalDate date = weekStart.plusDays(i);
                 Mood mood = moodFacade.getMood(date);
-                int x = padding + (i * graphW / 6);
+                // [FIX 5]
+                int x = padding + (int)((i * graphW) / 6.0);
                 xPoints[i] = x;
                 g2.setColor(Color.GRAY);
                 g2.drawString(date.format(dayFmt), x - 15, h - padding + 25);
                 if (mood != null && mood.getMoodValue() > 0) {
                     int val = mood.getMoodValue();
-                    int y = (h - padding) - (val * graphH / 6);
+                    // [FIX 5]
+                    int y = (h - padding) - (int)((val * graphH) / 6.0);
                     yPoints[i] = y;
                     hasData[i] = true;
                 } else {
@@ -275,7 +273,6 @@ public class MainDashboard extends JFrame {
                 }
             }
 
-            // Draw Connecting Lines
             g2.setColor(GRAPH_LINE);
             g2.setStroke(new BasicStroke(3f));
             for (int i = 0; i < 6; i++) {
@@ -284,13 +281,12 @@ public class MainDashboard extends JFrame {
                 }
             }
 
-            // Draw Points
             for (int i = 0; i < 7; i++) {
                 if (hasData[i]) {
                     g2.setColor(GRAPH_POINT);
-                    g2.fill(new Ellipse2D.Double(xPoints[i] - 6, yPoints[i] - 6, 12, 12));
+                    g2.fill(new Ellipse2D.Double(xPoints[i] - 6.0, yPoints[i] - 6.0, 12, 12));
                     g2.setColor(BG_MAIN);
-                    g2.draw(new Ellipse2D.Double(xPoints[i] - 6, yPoints[i] - 6, 12, 12));
+                    g2.draw(new Ellipse2D.Double(xPoints[i] - 6.0, yPoints[i] - 6.0, 12, 12));
                 }
             }
         }

@@ -16,8 +16,13 @@ public class MoodFacade {
     
     // Cache & Log
     private Map<LocalDate, Mood> moodCache = new HashMap<>();
-    private LinkedList<String> activityLog = new LinkedList<>();
-    private final String[] MOOD_EMOJIS = {"", "😭", "😞", "😐", "😊", "😄"};
+    
+    // [FIX 1] Gunakan Interface List
+    private List<String> activityLog = new LinkedList<>();
+    
+    // [FIX 2] Ubah nama variabel jadi camelCase (karena bukan static)
+    private final String[] moodEmojis = {"", "😭", "😞", "😐", "😊", "😄"};
+    
     private List<IObserver> observers = new ArrayList<>();
 
     public MoodFacade() {
@@ -38,32 +43,31 @@ public class MoodFacade {
         }
     }
 
-    public LinkedList<String> getActivityLog() {
+    // [FIX 1] Return type jadi List<String>
+    public List<String> getActivityLog() {
         return activityLog;
     }
 
     // --- LOGIC UTAMA ---
 
     public void saveMood(int moodValue, LocalDate date) {
-        if (moodValue < 0 || moodValue > 5) return; // 0 bisa untuk menghapus mood (reset)
+        if (moodValue < 0 || moodValue > 5) return; 
 
         boolean success = repo.upsertMood(moodValue, date);
         
         if (success) {
-            // Update Cache
             if (moodValue > 0) {
                 Mood newMood = new Mood(moodValue, date.toString());
                 moodCache.put(date, newMood);
                 
-                // Logging
-                String emoji = MOOD_EMOJIS[moodValue]; 
+                // [FIX 2] Gunakan nama variabel baru 'moodEmojis'
+                String emoji = moodEmojis[moodValue]; 
                 String tgl = date.getDayOfMonth() + "/" + date.getMonthValue();
                 String logPesan = "Input Mood: " + emoji + " (" + tgl + ")";
                 activityLog.add(logPesan);
             } else {
-                moodCache.remove(date); // Jika di-reset ke 0/kosong
+                moodCache.remove(date); 
             }
-
             notifyObservers(); 
         }
     }
