@@ -3,21 +3,26 @@ package com.project.app.config;
 import java.sql.Connection;
 import java.sql.DriverManager;
 // Pastikan import ini tidak merah
-import io.github.cdimascio.dotenv.Dotenv; 
+// import io.github.cdimascio.dotenv.Dotenv; 
 
 public class DatabaseConnection {
     private static DatabaseConnection instance;
     private Connection connection;
 
-    // --- TAMBAHKAN BARIS INI ---
-    // Kita harus memuat file .env nya dulu ke dalam variabel bernama 'dotenv'
-    private final Dotenv dotenv = Dotenv.load(); 
-    // ---------------------------
+    // // --- TAMBAHKAN BARIS INI ---
+    // // Kita harus memuat file .env nya dulu ke dalam variabel bernama 'dotenv'
+    // private final Dotenv dotenv = Dotenv.load(); 
+    // // ---------------------------
 
-    // Sekarang variabel 'dotenv' sudah dikenali, jadi baris di bawah ini tidak akan merah lagi
-    private final String URL = dotenv.get("DB_URL");
-    private final String USER = dotenv.get("DB_USERNAME");
-    private final String PASSWORD = dotenv.get("DB_PASSWORD");
+    // // Sekarang variabel 'dotenv' sudah dikenali, jadi baris di bawah ini tidak akan merah lagi
+    // private final String URL = dotenv.get("DB_URL");
+    // private final String USER = dotenv.get("DB_USERNAME");
+    // private final String PASSWORD = dotenv.get("DB_PASSWORD");
+
+    private final String URL = "jdbc:postgresql://localhost:5432/mood_habit_analysis";
+    private final String USER = "postgres";
+    private final String PASSWORD = "postgre";
+
 
     private DatabaseConnection() {
         try {
