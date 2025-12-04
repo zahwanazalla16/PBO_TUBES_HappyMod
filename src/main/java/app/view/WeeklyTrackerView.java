@@ -22,6 +22,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
+import java.util.LinkedList; 
 import java.util.List;
 
 public class WeeklyTrackerView extends JFrame implements IObserver {
@@ -33,6 +34,10 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
     private DefaultTableModel tableModel;
     private List<Habit> habitList;
     
+    // [BARU] DUA Text Area terpisah
+    private JTextArea habitLogArea; 
+    private JTextArea moodLogArea;
+
     private LocalDate weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
 
     // --- PALET WARNA ---
@@ -51,8 +56,12 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
     public WeeklyTrackerView() {
         setupLookAndFeel();
         initFrame();
+        
+        // Register Observer
         habitFacade.addObserver(this);
-        loadData();
+        moodFacade.addObserver(this);
+        
+        loadData(); 
     }
 
     private void setupLookAndFeel() {
@@ -67,8 +76,8 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
 
     private void initFrame() {
         setTitle("MoodFlow • Weekly Tracker");
-        setSize(1350, 850);
-        setDefaultCloseOperation(DISPOSE_ON_CLOSE); // Agar Main Menu tidak ikut tertutup
+        setSize(1350, 900); 
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
         getContentPane().setBackground(BG_MAIN);
 
@@ -78,12 +87,103 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
     private JPanel createTrackerPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(BG_MAIN);
-        panel.setBorder(new EmptyBorder(40, 50, 50, 50)); 
+        panel.setBorder(new EmptyBorder(40, 50, 40, 50)); 
 
         panel.add(createHeader(), BorderLayout.NORTH);
-        panel.add(createTablePanel(), BorderLayout.CENTER);
+        
+        JPanel contentPanel = new JPanel(new BorderLayout(0, 20)); 
+        contentPanel.setBackground(BG_MAIN);
+        
+        contentPanel.add(createTablePanel(), BorderLayout.CENTER);
+        contentPanel.add(createLogPanel(), BorderLayout.SOUTH); 
+
+        panel.add(contentPanel, BorderLayout.CENTER);
 
         return panel;
+    }
+
+    // [MODIFIKASI] Membuat Panel Log Terpisah (Kiri & Kanan)
+    private JPanel createLogPanel() {
+        // Container Utama untuk Log
+        JPanel mainLogPanel = new JPanel(new GridLayout(1, 2, 20, 0)); // 1 Baris, 2 Kolom, Jarak 20px
+        mainLogPanel.setBackground(BG_MAIN);
+        mainLogPanel.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER_COLOR), 
+            " Activity Logs (Session) ", 
+            0, 0, 
+            new Font("Poppins", Font.BOLD, 12), 
+            Color.GRAY
+        ));
+
+        // 1. Setup Area Kiri (Habit)
+        habitLogArea = createStyledTextArea();
+        JScrollPane scrollHabit = new JScrollPane(habitLogArea);
+        scrollHabit.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createEmptyBorder(), "✅ Habit Log", 0, 0, new Font("Poppins", Font.BOLD, 11), ACCENT_BROWN
+        ));
+        
+        // 2. Setup Area Kanan (Mood)
+        moodLogArea = createStyledTextArea();
+        JScrollPane scrollMood = new JScrollPane(moodLogArea);
+        scrollMood.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createEmptyBorder(), "🎭 Mood Log", 0, 0, new Font("Poppins", Font.BOLD, 11), ACCENT_BROWN
+        ));
+
+        mainLogPanel.add(scrollHabit);
+        mainLogPanel.add(scrollMood);
+        
+        // Bungkus lagi biar tingginya pas (tidak terlalu tinggi)
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setBackground(BG_MAIN);
+        wrapper.add(mainLogPanel, BorderLayout.CENTER);
+        wrapper.setPreferredSize(new Dimension(0, 180)); // Tinggi fix 180px
+        
+        return wrapper;
+    }
+
+    // Helper untuk style text area biar seragam & support emoji
+    private JTextArea createStyledTextArea() {
+        JTextArea area = new JTextArea();
+        area.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13)); // Font Emoji
+        area.setForeground(new Color(80, 80, 80));
+        area.setBackground(new Color(252, 252, 252));
+        area.setEditable(false); 
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        // Margin dalam text area
+        area.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        return area;
+    }
+
+    // [LOGIKA UPDATE TERPISAH]
+    private void updateLogView() {
+        // 1. Update Habit Log (Kiri)
+        LinkedList<String> habitLogs = habitFacade.getActivityLog();
+        StringBuilder sbHabit = new StringBuilder();
+        if (habitLogs.isEmpty()) {
+            sbHabit.append("- Belum ada aktivitas habit -");
+        } else {
+            java.util.Iterator<String> it = habitLogs.descendingIterator();
+            while (it.hasNext()) {
+                sbHabit.append("• ").append(it.next()).append("\n");
+            }
+        }
+        habitLogArea.setText(sbHabit.toString());
+        habitLogArea.setCaretPosition(0);
+
+        // 2. Update Mood Log (Kanan)
+        LinkedList<String> moodLogs = moodFacade.getActivityLog();
+        StringBuilder sbMood = new StringBuilder();
+        if (moodLogs.isEmpty()) {
+            sbMood.append("- Belum ada aktivitas mood -");
+        } else {
+            java.util.Iterator<String> it = moodLogs.descendingIterator();
+            while (it.hasNext()) {
+                sbMood.append("• ").append(it.next()).append("\n");
+            }
+        }
+        moodLogArea.setText(sbMood.toString());
+        moodLogArea.setCaretPosition(0);
     }
 
     private Component createHeader() {
@@ -91,7 +191,7 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         header.setOpaque(false);
         header.setBorder(new EmptyBorder(0, 0, 30, 0));
 
-        JLabel title = new JLabel("Weekly Overview");
+        JLabel title = new JLabel("Weekly Tracker");
         title.setFont(new Font("Poppins", Font.BOLD, 32));
         title.setForeground(TEXT_DARK);
 
@@ -105,10 +205,7 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
             new EmptyBorder(5, 10, 5, 10))
         );
         
-        // --- FITUR CURSOR KEDIP-KEDIP ---
-        input.setCaretColor(TEXT_DARK); // Memastikan garis cursor berwarna gelap agar terlihat
-        
-        // Setup Placeholder
+        input.setCaretColor(TEXT_DARK);
         setupPlaceholder(input, "Input habit baru...");
         
         JButton addBtn = new JButton("+ New Habit");
@@ -142,7 +239,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         field.setText(placeholder);
         field.setForeground(TEXT_PLACEHOLDER);
         
-        // Bersihkan listener lama (jika ada) untuk mencegah duplikasi event
         for(java.awt.event.FocusListener fl : field.getFocusListeners()) {
             field.removeFocusListener(fl);
         }
@@ -150,16 +246,13 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         field.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent e) {
-                // Saat diklik, jika isinya masih placeholder, kosongkan
                 if (field.getText().equals(placeholder)) {
                     field.setText("");
                     field.setForeground(TEXT_DARK);
                 }
-                // Saat teks kosong, Java Swing otomatis menampilkan cursor (caret) kedip-kedip
             }
             @Override
             public void focusLost(FocusEvent e) {
-                // Saat ditinggalkan, jika kosong, kembalikan placeholder
                 if (field.getText().isEmpty()) {
                     field.setText(placeholder);
                     field.setForeground(TEXT_PLACEHOLDER);
@@ -205,7 +298,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
 
             @Override
             public TableCellRenderer getCellRenderer(int row, int column) {
-                // A. LOGIKA UNTUK MOOD ROW (BARIS PALING BAWAH)
                 if (row == getRowCount() - 1) {
                     if (column == 0 || column == 1) {
                         return new DefaultTableCellRenderer() {
@@ -234,9 +326,8 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
                     }
                 }
 
-                // B. ISI DATA
                 if (column >= 2 && column <= 8) {
-                    if (row == getRowCount() - 1) { // MOOD EMOJI
+                    if (row == getRowCount() - 1) { 
                         return new DefaultTableCellRenderer() {
                             @Override
                             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
@@ -258,7 +349,7 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
                                 return l;
                             }
                         };
-                    } else { // HABIT CHECKBOX
+                    } else { 
                         return new TableCellRenderer() {
                             final JCheckBox cb = new JCheckBox();
                             @Override
@@ -276,7 +367,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
                     }
                 }
                 
-                // C. Kolom Text Biasa
                 if (column == 0 || column == 1) {
                     return new DefaultTableCellRenderer() {
                         @Override
@@ -314,7 +404,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
             }
         };
 
-        // --- STYLE TABLE ---
         trackerTable.setRowHeight(60);
         trackerTable.setShowGrid(true); 
         trackerTable.setShowVerticalLines(true);
@@ -327,7 +416,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         trackerTable.getTableHeader().setPreferredSize(new Dimension(0, 50)); 
         ((JComponent)trackerTable.getTableHeader()).setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, BORDER_COLOR));
 
-        // === TOMBOL DELETE MERAH ===
         TableColumn deleteCol = trackerTable.getColumnModel().getColumn(9);
         deleteCol.setMaxWidth(80); 
         
@@ -352,7 +440,6 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
             }
         });
 
-        // Event Listener
         trackerTable.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent evt) {
@@ -415,6 +502,7 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
     }
 
     private void loadData() {
+        // 1. Reset Table
         tableModel.setRowCount(0);
         habitList = habitFacade.getHabits();
         int no = 1;
@@ -444,5 +532,8 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         }
         moodRow[9] = "";
         tableModel.addRow(moodRow);
+        
+        // 2. Update Log View (Kiri & Kanan)
+        updateLogView();
     }
 }

@@ -13,10 +13,13 @@ import app.repository.HabitRepository;
 // Import Java Utilities
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 // Import JUnit & Mockito Static
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
 @DisplayName("Test Lengkap HabitFacade (CRUD + Tracking + Observer)")
@@ -220,5 +223,64 @@ class HabitFacadeTest {
 
         // VERIFIKASI: Pastikan method di repo dipanggil dengan parameter yg benar
         verify(repositoryMock).setHabitStatus(1, today, true);
+    }
+
+
+    // ==========================================
+    // 2. TEST KHUSUS JCF (HashMap & LinkedList)
+    // ==========================================
+
+    @Test
+    @DisplayName("JCF LINKEDLIST: Activity Log bertambah saat ada aksi")
+    void testActivityLog_LinkedList() {
+        // Setup Repository selalu sukses
+        when(repositoryMock.createHabit(any())).thenReturn(true);
+        when(repositoryMock.deleteHabit(anyInt())).thenReturn(true);
+
+        // 1. Awalnya log harus kosong
+        assertEquals(0, habitFacade.getActivityLog().size());
+
+        // 2. Lakukan Aksi Tambah
+        habitFacade.addHabit("Habit A");
+        
+        // Cek apakah LinkedList nambah?
+        LinkedList<String> log = habitFacade.getActivityLog();
+        assertEquals(1, log.size(), "Log harusnya berisi 1 item");
+        assertTrue(log.getLast().contains("Menambahkan"), "Isi log harus benar");
+
+        // 3. Lakukan Aksi Hapus
+        habitFacade.deleteHabit(1);
+
+        // Cek lagi
+        assertEquals(2, log.size(), "Log harusnya berisi 2 item");
+        assertTrue(log.getLast().contains("Menghapus"), "Isi log terakhir harus delete");
+    }
+
+    @Test
+    @DisplayName("JCF HASHMAP: Caching berfungsi (Get kedua tidak panggil DB)")
+    void testCache_HashMap() {
+        int testId = 100;
+        Habit habitMock = new Habit(testId, "Test Cache");
+        
+        // Skenario: DB punya data ini
+        when(repositoryMock.getHabitById(testId)).thenReturn(habitMock);
+
+        // --- PEMANGGILAN PERTAMA (Cache Miss) ---
+        // Karena cache kosong, dia harus nanya ke Repository (DB)
+        Habit result1 = habitFacade.getHabit(testId);
+        
+        assertNotNull(result1);
+        // Pastikan repo dipanggil 1 kali
+        verify(repositoryMock, times(1)).getHabitById(testId);
+
+        // --- PEMANGGILAN KEDUA (Cache Hit) ---
+        // Sekarang data harusnya sudah ada di HashMap
+        Habit result2 = habitFacade.getHabit(testId);
+        
+        assertNotNull(result2);
+        // POIN PENTING: Verify tetap times(1). 
+        // Artinya pada panggilan kedua, dia TIDAK memanggil repositoryMock lagi.
+        // Dia ambil langsung dari HashMap.
+        verify(repositoryMock, times(1)).getHabitById(testId);
     }
 }

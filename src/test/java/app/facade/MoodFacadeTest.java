@@ -17,6 +17,8 @@ import java.util.List;
 
 // Import JUnit & Mockito
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
 @DisplayName("Test Lengkap MoodFacade (CRUD + Validasi)")
@@ -191,5 +193,63 @@ class MoodFacadeTest {
 
         List<Mood> result = moodFacade.getAllMood();
         assertEquals(1, result.size());
+    }
+
+
+    // ==========================================
+    // 6. TEST KHUSUS JCF (HashMap & LinkedList)
+    // ==========================================
+
+    @Test
+    @DisplayName("JCF LINKEDLIST: Activity Log bertambah saat Save Mood")
+    void testActivityLog_LinkedList() {
+        // Setup: Repo harus return true (sukses) agar log tercatat
+        when(repoMock.upsertMood(anyInt(), any())).thenReturn(true);
+        LocalDate date = LocalDate.now();
+
+        // 1. Awalnya log harus kosong
+        assertEquals(0, moodFacade.getActivityLog().size());
+
+        // 2. Lakukan Aksi Save Mood
+        moodFacade.saveMood(5, date); // Input Mood: Sangat Baik
+        
+        // 3. Cek LinkedList
+        java.util.LinkedList<String> log = moodFacade.getActivityLog();
+        
+        // Validasi Ukuran
+        assertEquals(1, log.size(), "Log harusnya berisi 1 item");
+        
+        // Validasi Konten (Pastikan format stringnya mengandung kata kunci)
+        // Format di Facade: "Input Mood: ... (tgl)"
+        assertTrue(log.getLast().contains("Input Mood"), "Isi log harus mengandung 'Input Mood'");
+        assertTrue(log.getLast().contains("😊") || log.getLast().contains("😄"), "Harus ada emojinya (tergantung array)");
+    }
+
+    @Test
+    @DisplayName("JCF HASHMAP: Caching berfungsi (Get kedua tidak panggil DB)")
+    void testCache_HashMap() {
+        LocalDate testDate = LocalDate.of(2023, 12, 1);
+        Mood moodMock = new Mood(1, 4, testDate.toString());
+        
+        // Skenario: DB punya data ini
+        when(repoMock.getMoodByDate(testDate)).thenReturn(moodMock);
+
+        // --- PEMANGGILAN PERTAMA (Cache Miss) ---
+        // Cache kosong -> Panggil Repo
+        Mood result1 = moodFacade.getMood(testDate);
+        
+        assertNotNull(result1);
+        // Pastikan repo dipanggil 1 kali
+        verify(repoMock, times(1)).getMoodByDate(testDate);
+
+        // --- PEMANGGILAN KEDUA (Cache Hit) ---
+        // Data sudah ada di HashMap -> TIDAK BOLEH panggil Repo lagi
+        Mood result2 = moodFacade.getMood(testDate);
+        
+        assertNotNull(result2);
+        
+        // POIN PENTING: Verify tetap times(1). 
+        // Artinya panggilan kedua murni diambil dari Memory (HashMap).
+        verify(repoMock, times(1)).getMoodByDate(testDate);
     }
 }

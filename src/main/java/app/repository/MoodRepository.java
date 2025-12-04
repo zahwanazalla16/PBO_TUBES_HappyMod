@@ -28,25 +28,28 @@ public class MoodRepository {
         return null;
     }
 
-    public void upsertMood(int moodValue, LocalDate date) {
-        // Hapus dulu yang lama di tanggal itu (biar simpel, gak perlu cek unique constraint DB)
+    public boolean upsertMood(int moodValue, LocalDate date) {
         String deleteSql = "DELETE FROM mood WHERE date = ?";
         String insertSql = "INSERT INTO mood (mood_value, date) VALUES (?, ?)";
 
         try {
-            // Hapus existing
+            // 1. Hapus data lama (jika ada)
             PreparedStatement delStmt = conn.prepareStatement(deleteSql);
             delStmt.setDate(1, Date.valueOf(date));
             delStmt.executeUpdate();
 
-            // Insert baru
-            if (moodValue > 0) { // Hanya insert jika ada value (bukan null/0)
+            // 2. Insert baru (hanya jika value valid)
+            if (moodValue > 0) {
                 PreparedStatement insStmt = conn.prepareStatement(insertSql);
                 insStmt.setInt(1, moodValue);
                 insStmt.setDate(2, Date.valueOf(date));
                 insStmt.executeUpdate();
             }
-        } catch (Exception e) { e.printStackTrace(); }
+            return true; // Sukses
+        } catch (Exception e) { 
+            e.printStackTrace(); 
+            return false; // Gagal
+        }
     }
 
     public void createMood(Mood mood) {

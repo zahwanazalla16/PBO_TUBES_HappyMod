@@ -16,7 +16,7 @@ public class HabitRepository {
         conn = DatabaseConnection.getInstance().getConnection();
     }
 
-    // CREATE
+    // --- CREATE ---
     public boolean createHabit(Habit habit) {
         String sql = "INSERT INTO habits (name) VALUES (?)";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -29,13 +29,14 @@ public class HabitRepository {
         }
     }
 
-    // READ (Single)
+    // --- READ (Single) ---
     public Habit getHabitById(int id) {
         String sql = "SELECT * FROM habits WHERE id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
+                // Constructor Habit hanya ID dan Name (Sesuai request, tanpa is_completed)
                 return new Habit(
                         rs.getInt("id"),
                         rs.getString("name")
@@ -47,7 +48,7 @@ public class HabitRepository {
         return null;
     }
 
-    // READ (All)
+    // --- READ (All) ---
     public List<Habit> getAllHabits() {
         List<Habit> habits = new ArrayList<>();
         String sql = "SELECT * FROM habits ORDER BY id ASC";
@@ -66,9 +67,8 @@ public class HabitRepository {
         return habits;
     }
 
-    // UPDATE
+    // --- UPDATE ---
     public boolean updateHabit(Habit habit) {
-        // Hapus update description, sisa name saja
         String sql = "UPDATE habits SET name = ? WHERE id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, habit.getName());
@@ -81,7 +81,7 @@ public class HabitRepository {
         }
     }
 
-    // DELETE
+    // --- DELETE ---
     public boolean deleteHabit(int id) {
         String sql = "DELETE FROM habits WHERE id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -95,34 +95,36 @@ public class HabitRepository {
     }
 
     // ==========================================
-    // FITUR BARU: TRACKING / LOGGING
+    // TRACKING / LOGGING (Habit Logs Table)
     // ==========================================
 
-    // Cek status Habit di tanggal tertentu
     public boolean isHabitDone(int habitId, LocalDate date) {
         String sql = "SELECT 1 FROM habit_logs WHERE habit_id = ? AND date = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, habitId);
             stmt.setDate(2, Date.valueOf(date));
             ResultSet rs = stmt.executeQuery();
-            return rs.next(); // true jika ada baris
+            return rs.next();
         } catch (SQLException e) {
             e.printStackTrace();
         }
         return false;
     }
 
-    // Toggle: Jika status true -> INSERT. Jika false -> DELETE.
-    public void setHabitStatus(int habitId, LocalDate date, boolean status) {
+    // [UBAH] Return boolean agar Facade tau sukses/gagal
+    public boolean setHabitStatus(int habitId, LocalDate date, boolean status) {
         if (status) {
             // INSERT (Tandai Selesai)
-            // Pakai "INSERT ... ON CONFLICT DO NOTHING" agar tidak error kalau diklik double
             String sql = "INSERT INTO habit_logs (habit_id, date) VALUES (?, ?) ON CONFLICT DO NOTHING";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, habitId);
                 stmt.setDate(2, Date.valueOf(date));
                 stmt.executeUpdate();
-            } catch (SQLException e) { e.printStackTrace(); }
+                return true; // Sukses Insert
+            } catch (SQLException e) { 
+                e.printStackTrace(); 
+                return false;
+            }
         } else {
             // DELETE (Hapus Tanda Selesai / Unchecklist)
             String sql = "DELETE FROM habit_logs WHERE habit_id = ? AND date = ?";
@@ -130,7 +132,11 @@ public class HabitRepository {
                 stmt.setInt(1, habitId);
                 stmt.setDate(2, Date.valueOf(date));
                 stmt.executeUpdate();
-            } catch (SQLException e) { e.printStackTrace(); }
+                return true; // Sukses Delete
+            } catch (SQLException e) { 
+                e.printStackTrace(); 
+                return false;
+            }
         }
     }
 }

@@ -7,22 +7,32 @@ import app.repository.MoodRepository;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;    // [JCF 2]
+import java.util.LinkedList; // [JCF 3]
+import java.util.Map;
 
 public class MoodFacade {
 
     private MoodRepository repo;
     
-    // 1. Constructor Default (Dipakai Aplikasi Asli)
+    // [JCF 2] Cache Mood
+    private Map<LocalDate, Mood> moodCache = new HashMap<>();
+
+    // [JCF 3] Log Aktivitas Session
+    private LinkedList<String> activityLog = new LinkedList<>();
+
+    // [KEMBALI KE EMOJI]
+    private final String[] MOOD_EMOJIS = {"", "😭", "😞", "😐", "😊", "😄"};
+
+    private List<IObserver> observers = new ArrayList<>();
+
     public MoodFacade() {
         this.repo = new MoodRepository();
     }
 
-    // 2. Constructor untuk Testing (Agar bisa masukin Mock)
     public MoodFacade(MoodRepository repo) {
         this.repo = repo;
     }
-
-    private List<IObserver> observers = new ArrayList<>();
 
     public void addObserver(IObserver observer) {
         observers.add(observer);
@@ -34,45 +44,65 @@ public class MoodFacade {
         }
     }
 
-    // --- BAGIAN CRUD ---
-
-    public void saveMood(int moodValue, LocalDate date) {
-        // Validasi: Mood harus 1-5 (Emoji)
-        if (moodValue < 1 || moodValue > 5) {
-            return; // GAGAL: Tidak simpan ke DB, tidak notify observer
-        }
-        repo.upsertMood(moodValue, date);
-        notifyObservers(); 
+    public LinkedList<String> getActivityLog() {
+        return activityLog;
     }
 
-    public void addMood(int moodValue, String date) {
-        // Validasi
-        if (moodValue < 1 || moodValue > 5) {
-            return;
+    // --- LOGIC UTAMA ---
+
+    public void saveMood(int moodValue, LocalDate date) {
+        // Validasi input 1-5
+        if (moodValue < 1 || moodValue > 5) return;
+
+        // 1. Simpan ke Database
+        boolean success = repo.upsertMood(moodValue, date);
+        
+        // 2. Jika sukses, update Cache dan Log
+        if (success) {
+            // Update Cache
+            Mood newMood = new Mood(moodValue, date.toString());
+            moodCache.put(date, newMood);
+
+            // [PAKAI EMOJI LAGI DISINI]
+            String emoji = MOOD_EMOJIS[moodValue]; 
+            
+            String tgl = date.getDayOfMonth() + "/" + date.getMonthValue();
+            
+            // Hasil Log: "Input Mood: 😊 (30/11)"
+            String logPesan = "Input Mood: " + emoji + " (" + tgl + ")";
+            
+            activityLog.add(logPesan);
+
+            notifyObservers(); 
         }
+    }
+
+    public Mood getMood(LocalDate date) {
+        if (moodCache.containsKey(date)) {
+            return moodCache.get(date);
+        }
+        Mood m = repo.getMoodByDate(date);
+        if (m != null) {
+            moodCache.put(date, m);
+        }
+        return m;
+    }
+
+    // ... Sisa method (addMood, updateMood, deleteMood, getAllMood) sama ...
+    public void addMood(int moodValue, String date) {
+        if (moodValue < 1 || moodValue > 5) return;
         repo.createMood(new Mood(moodValue, date));
         notifyObservers();
     }
-
     public void updateMood(int id, int newValue) {
-        if (newValue < 1 || newValue > 5) {
-            return;
-        }
+        if (newValue < 1 || newValue > 5) return;
         repo.updateMood(id, newValue);
         notifyObservers();
     }
-
     public void deleteMood(int id) {
         repo.deleteMood(id);
         notifyObservers();
     }
-
-    // --- BAGIAN READ ---
-
-    public Mood getMood(LocalDate date) {
-        return repo.getMoodByDate(date);
-    }
-
     public List<Mood> getAllMood() {
         return repo.getAllMood();
     }
