@@ -7,8 +7,9 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.TextStyle;
 import java.util.*;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 public class AnalysisService {
     private final AnalysisRepository analysisRepository;
@@ -16,7 +17,9 @@ public class AnalysisService {
 
     public AnalysisService() {
         this.analysisRepository = new AnalysisRepository();
-        // Initialize the pool of analysis methods
+        
+        // Initialize the pool using Method References
+        // Logika detailnya sekarang dibungkus dalam generic flow
         this.analysisPool = Arrays.asList(
             this::analyzeHabitConsistency,
             this::analyzeHabitsWithHighMood,
@@ -25,24 +28,17 @@ public class AnalysisService {
             this::analyzeLowestMoodDay,
             this::generatePositiveImpactRecommendation,
             this::generateConsistencyRecommendation
-            // Add more analysis method references here
         );
     }
 
-    /**
-     * Gets 7 unique, randomly selected analyses from the pool.
-     * It will try to generate analyses until 7 are collected or the pool is exhausted.
-     * @return A list of 7 unique analysis strings.
-     */
     public List<String> getSevenRandomAnalyses() {
         List<String> analyses = new ArrayList<>();
         List<Supplier<String>> shuffledPool = new ArrayList<>(analysisPool);
         Collections.shuffle(shuffledPool);
 
         for (Supplier<String> analysisSupplier : shuffledPool) {
-            if (analyses.size() >= 7) {
-                break;
-            }
+            if (analyses.size() >= 7) break;
+            
             String result = analysisSupplier.get();
             if (result != null && !result.isEmpty()) {
                 analyses.add(result);
@@ -51,100 +47,163 @@ public class AnalysisService {
         return analyses;
     }
 
-    // --- Analysis Method Implementations ---
+    // ==================================================================================
+    // 🟢 GENERIC METHOD CORE
+    // ==================================================================================
+    
+    /**
+     * Metode Generic untuk menjalankan analisis.
+     * @param <T> Tipe data yang akan dianalisis (bisa Habit, List, Map, dll).
+     * @param dataSupplier Fungsi untuk mengambil data dari repository.
+     * @param validator Fungsi untuk mengecek validitas data (misal: null check, empty check).
+     * @param resultFormatter Fungsi untuk mengubah data T menjadi String output.
+     * @return String hasil analisis atau null jika data tidak valid.
+     */
+    private <T> String executeAnalysis(Supplier<T> dataSupplier, 
+                                       Predicate<T> validator, 
+                                       Function<T, String> resultFormatter) {
+        try {
+            T data = dataSupplier.get();
+            // Generic check: Jika data valid menurut validator, lakukan formatting
+            if (validator.test(data)) {
+                return resultFormatter.apply(data);
+            }
+        } catch (Exception e) {
+            e.printStackTrace(); // Log error jangan sampai crash UI
+        }
+        return null; // Return null jika data tidak valid atau error
+    }
 
+    // ==================================================================================
+    // IMPLEMENTASI MENGGUNAKAN GENERIC
+    // ==================================================================================
+
+    // 1. Kasus T = Habit
     private String analyzeHabitConsistency() {
-        Habit habit = analysisRepository.getRandomHabit();
-        if (habit == null) return null;
-
-        LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate.minusDays(6); // Last 7 days
-        int count = analysisRepository.countHabitLogs(habit.getId(), startDate, endDate);
-        
-        if (count > 0) {
-            long totalDays = 7;
-            long percentage = (count * 100) / totalDays;
-            return String.format("Konsistensi: '%s' dilakukan %d dari %d hari terakhir (%d%%).",
-                habit.getName(), count, totalDays, percentage);
-        }
-        return null;
+        return executeAnalysis(
+            // Supplier: Ambil data Habit acak
+            () -> analysisRepository.getRandomHabit(),
+            
+            // Validator: Pastikan habit tidak null
+            Objects::nonNull,
+            
+            // Formatter: Ubah Habit menjadi String (Logic hitung hari ada di sini)
+            habit -> {
+                LocalDate endDate = LocalDate.now();
+                LocalDate startDate = endDate.minusDays(6);
+                int count = analysisRepository.countHabitLogs(habit.getId(), startDate, endDate);
+                
+                if (count > 0) {
+                    long percentage = (count * 100) / 7;
+                    return String.format("Konsistensi: '%s' dilakukan %d dari 7 hari terakhir (%d%%).",
+                            habit.getName(), count, percentage);
+                }
+                return null; // Akan difilter di getSevenRandomAnalyses
+            }
+        );
     }
 
+    // 2. Kasus T = List<String>
     private String analyzeHabitsWithHighMood() {
-        LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate.minusWeeks(1);
-        List<String> habits = analysisRepository.getHabitsByMood(true, 3, startDate, endDate);
-
-        if (!habits.isEmpty()) {
-            return "Saat mood sedang baik, Anda sering melakukan: " + String.join(", ", habits) + ".";
-        }
-        return null;
+        return executeAnalysis(
+            // Supplier: Ambil List nama habit
+            () -> {
+                LocalDate end = LocalDate.now();
+                return analysisRepository.getHabitsByMood(true, 3, end.minusWeeks(1), end);
+            },
+            
+            // Validator: List tidak boleh kosong
+            list -> !list.isEmpty(),
+            
+            // Formatter: Join list jadi string
+            list -> "Saat mood sedang baik, Anda sering melakukan: " + String.join(", ", list) + "."
+        );
     }
 
+    // 3. Kasus T = List<String> (Low Mood)
     private String analyzeHabitsWithLowMood() {
-        LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate.minusWeeks(1);
-        List<String> habits = analysisRepository.getHabitsByMood(false, 3, startDate, endDate);
-
-        if (!habits.isEmpty()) {
-            return "Saat mood sedang kurang baik, Anda tercatat melakukan: " + String.join(", ", habits) + ".";
-        }
-        return null;
+        return executeAnalysis(
+            () -> {
+                LocalDate end = LocalDate.now();
+                return analysisRepository.getHabitsByMood(false, 3, end.minusWeeks(1), end);
+            },
+            list -> !list.isEmpty(),
+            list -> "Saat mood sedang kurang baik, Anda tercatat melakukan: " + String.join(", ", list) + "."
+        );
     }
 
+    // 4. Kasus T = Map<DayOfWeek, Double>
     private String analyzeHighestMoodDay() {
-        LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate.minusWeeks(1);
-        Map<DayOfWeek, Double> moodByDay = analysisRepository.getAverageMoodByDayOfWeek(startDate, endDate);
-
-        Optional<Map.Entry<DayOfWeek, Double>> highestMoodDay = moodByDay.entrySet().stream()
-            .max(Map.Entry.comparingByValue());
-
-        if (highestMoodDay.isPresent()) {
-            String dayName = highestMoodDay.get().getKey().getDisplayName(TextStyle.FULL, new Locale("id", "ID"));
-            return "Pola mingguan menunjukkan mood tertinggi Anda sering terjadi pada hari " + dayName + ".";
-        }
-        return null;
+        return executeAnalysis(
+            // Supplier
+            () -> {
+                LocalDate end = LocalDate.now();
+                return analysisRepository.getAverageMoodByDayOfWeek(end.minusWeeks(1), end);
+            },
+            
+            // Validator
+            map -> !map.isEmpty(),
+            
+            // Formatter
+            map -> {
+                return map.entrySet().stream()
+                    .max(Map.Entry.comparingByValue())
+                    .map(entry -> {
+                        String dayName = entry.getKey().getDisplayName(TextStyle.FULL, new Locale("id", "ID"));
+                        return "Pola mingguan menunjukkan mood tertinggi Anda sering terjadi pada hari " + dayName + ".";
+                    })
+                    .orElse(null);
+            }
+        );
     }
-    
+
+    // 5. Kasus T = Map<DayOfWeek, Double> (Lowest)
     private String analyzeLowestMoodDay() {
-        LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate.minusWeeks(1);
-        Map<DayOfWeek, Double> moodByDay = analysisRepository.getAverageMoodByDayOfWeek(startDate, endDate);
-
-        Optional<Map.Entry<DayOfWeek, Double>> lowestMoodDay = moodByDay.entrySet().stream()
-            .min(Map.Entry.comparingByValue());
-
-        if (lowestMoodDay.isPresent()) {
-            String dayName = lowestMoodDay.get().getKey().getDisplayName(TextStyle.FULL, new Locale("id", "ID"));
-            return "Hari " + dayName + " cenderung menjadi hari yang lebih berat untuk Anda minggu ini.";
-        }
-        return null;
+        return executeAnalysis(
+            () -> {
+                LocalDate end = LocalDate.now();
+                return analysisRepository.getAverageMoodByDayOfWeek(end.minusWeeks(1), end);
+            },
+            map -> !map.isEmpty(),
+            map -> {
+                return map.entrySet().stream()
+                    .min(Map.Entry.comparingByValue())
+                    .map(entry -> {
+                        String dayName = entry.getKey().getDisplayName(TextStyle.FULL, new Locale("id", "ID"));
+                        return "Hari " + dayName + " cenderung menjadi hari yang lebih berat untuk Anda minggu ini.";
+                    })
+                    .orElse(null);
+            }
+        );
     }
-    
+
+    // 6. Kasus T = List<String> (Rekomendasi)
     private String generatePositiveImpactRecommendation() {
-        // This is a simplified version of the original impact analysis
-        // It finds a habit done on high-mood days and suggests it.
-        LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate.minusWeeks(1);
-        List<String> habits = analysisRepository.getHabitsByMood(true, 1, startDate, endDate);
-        if (!habits.isEmpty()) {
-            return String.format("Rekomendasi: Melakukan '%s' terbukti membantu menjaga mood tetap stabil. Pertahankan!", habits.get(0));
-        }
-        return null;
+        return executeAnalysis(
+            () -> {
+                LocalDate end = LocalDate.now();
+                return analysisRepository.getHabitsByMood(true, 1, end.minusWeeks(1), end);
+            },
+            list -> !list.isEmpty(),
+            list -> String.format("Rekomendasi: Melakukan '%s' terbukti membantu menjaga mood tetap stabil. Pertahankan!", list.get(0))
+        );
     }
-    
+
+    // 7. Kasus T = Habit (Saran Konsistensi)
     private String generateConsistencyRecommendation() {
-        Habit habit = analysisRepository.getRandomHabit();
-        if (habit == null) return null;
-
-        LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate.minusDays(6);
-        int count = analysisRepository.countHabitLogs(habit.getId(), startDate, endDate);
-
-        if (count > 0 && count < 3) { // Recommend if consistency is low but not zero
-            return String.format("Saran: Untuk meningkatkan mood, coba tingkatkan frekuensi '%s' menjadi 4x/minggu.", habit.getName());
-        }
-        return null;
+        return executeAnalysis(
+            () -> analysisRepository.getRandomHabit(),
+            Objects::nonNull,
+            habit -> {
+                LocalDate end = LocalDate.now();
+                int count = analysisRepository.countHabitLogs(habit.getId(), end.minusDays(6), end);
+                
+                // Logic spesifik
+                if (count > 0 && count < 3) {
+                    return String.format("Saran: Untuk meningkatkan mood, coba tingkatkan frekuensi '%s' menjadi 4x/minggu.", habit.getName());
+                }
+                return null;
+            }
+        );
     }
 }
