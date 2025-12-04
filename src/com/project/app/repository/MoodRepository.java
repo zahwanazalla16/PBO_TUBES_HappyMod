@@ -12,7 +12,7 @@ public class MoodRepository {
     private Connection conn;
 
     public MoodRepository() {
-        conn = DatabaseConnection.getInstance().getConn();
+        conn = DatabaseConnection.getInstance().getConnection();
     }
 
     public void createMood(Mood mood) {
