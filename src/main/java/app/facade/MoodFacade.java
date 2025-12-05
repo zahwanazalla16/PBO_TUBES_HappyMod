@@ -19,7 +19,6 @@ public class MoodFacade {
     
     private List<String> activityLog = new LinkedList<>();
     
-    // nama variabel camelCase (karena bukan static)
     private final String[] moodEmojis = {"", "😭", "😞", "😐", "😊", "😄"};
     
     private List<IObserver> observers = new ArrayList<>();

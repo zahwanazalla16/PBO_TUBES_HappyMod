@@ -5,6 +5,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableColumn;
 
 import app.facade.HabitFacade;
@@ -47,6 +48,9 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
     
     private JTextArea habitLogArea; 
     private JTextArea moodLogArea;
+
+    // Flag untuk mencegah loop saat loading data
+    private boolean isLoading = false; 
 
     private LocalDate weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
 
@@ -273,6 +277,7 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
 
         trackerTable = new JTable(tableModel);
         trackerTable.setDefaultRenderer(Object.class, new TrackerCellRenderer());
+        
         trackerTable.setDefaultEditor(Object.class, new TrackerCellEditor());
 
         trackerTable.setRowHeight(60);
@@ -293,6 +298,7 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         trackerTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent evt) {
+                if (isLoading) return; 
                 int row = trackerTable.rowAtPoint(evt.getPoint());
                 int col = trackerTable.columnAtPoint(evt.getPoint());
                 if (col == 9 && row >= 0 && row < habitList.size()) {
@@ -302,6 +308,8 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         });
 
         tableModel.addTableModelListener(e -> {
+            if (isLoading) return;
+
             if (e.getType() == javax.swing.event.TableModelEvent.UPDATE) {
                 int row = e.getFirstRow();
                 int col = e.getColumn();
@@ -422,28 +430,58 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
         }
     }
 
-    private class TrackerCellEditor extends DefaultCellEditor {
+
+    private class TrackerCellEditor extends AbstractCellEditor implements TableCellEditor {
+        private static final long serialVersionUID = 1L;
+        
+        private JCheckBox checkBox;
+        private JComboBox<String> comboBox;
+        private boolean isMoodRowEditing;
+
         public TrackerCellEditor() {
-            super(new JCheckBox());
+            // Setup Checkbox
+            checkBox = new JCheckBox();
+            checkBox.setHorizontalAlignment(SwingConstants.CENTER);
+            checkBox.setBackground(BG_MAIN);
+            checkBox.addActionListener(e -> stopCellEditing());
+
+            // Setup ComboBox
+            comboBox = new JComboBox<>(MOOD_OPTIONS);
+            comboBox.setFont(new Font(FONT_EMOJI, Font.PLAIN, 28));
+            ((JLabel)comboBox.getRenderer()).setHorizontalAlignment(SwingConstants.CENTER);
+            // Langsung commit saat item dipilih agar UI tidak 'gantung'
+            comboBox.addActionListener(e -> stopCellEditing());
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            // Kembalikan tipe data yang sesuai dengan barisnya
+            if (isMoodRowEditing) {
+                return comboBox.getSelectedItem(); // Mengembalikan String
+            }
+            return checkBox.isSelected(); // Mengembalikan Boolean
         }
 
         @Override
         public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
-            if (row == table.getRowCount() - 1) {
-                JComboBox<String> combo = new JComboBox<>(MOOD_OPTIONS);
-                combo.setFont(new Font(FONT_EMOJI, Font.PLAIN, 28));
-                ((JLabel)combo.getRenderer()).setHorizontalAlignment(SwingConstants.CENTER);
-                return combo;
-            }
+            // Tentukan kita sedang di baris Mood atau Habit
+            isMoodRowEditing = (row == table.getRowCount() - 1);
             
-            JCheckBox cb = (JCheckBox) super.getTableCellEditorComponent(table, value, isSelected, row, column);
-            cb.setHorizontalAlignment(SwingConstants.CENTER);
-            cb.setBackground(BG_MAIN);
-            return cb;
+            if (isMoodRowEditing) {
+                String val = (value instanceof String s) ? s : "";
+                comboBox.setSelectedItem(val);
+                return comboBox;
+            } else {
+                boolean val = Boolean.TRUE.equals(value);
+                checkBox.setSelected(val);
+                return checkBox;
+            }
         }
     }
 
     private void handleDataChange(int row, int col) {
+        // Tidak perlu stopCellEditing disini karena Editor sudah otomatis stop saat ActionEvent.
+        
         int dayIndex = col - 2;
         LocalDate date = weekStart.plusDays(dayIndex);
 
@@ -483,36 +521,54 @@ public class WeeklyTrackerView extends JFrame implements IObserver {
     }
 
     private void loadData() {
-        tableModel.setRowCount(0);
-        habitList = habitFacade.getHabits();
-        int no = 1;
-        for (Habit h : habitList) {
-            Object[] row = new Object[10];
-            row[0] = no++;
-            row[1] = h.getName();
-            for (int i = 0; i < 7; i++) {
-                row[i + 2] = habitFacade.getHabitStatus(h.getId(), weekStart.plusDays(i));
-            }
-            row[9] = ""; 
-            tableModel.addRow(row);
-        }
+        if (isLoading) return;
+        
+        isLoading = true;
 
-        Object[] moodRow = new Object[10];
-        moodRow[0] = "";
-        moodRow[1] = "Daily Mood"; 
-        
-        for (int i = 0; i < 7; i++) {
-            LocalDate d = weekStart.plusDays(i);
-            Mood m = moodFacade.getMood(d);
-            if (m != null && m.getMoodValue() >= 1 && m.getMoodValue() <= 5) {
-                moodRow[i+2] = MOOD_OPTIONS[m.getMoodValue()];
-            } else {
-                moodRow[i+2] = ""; 
+        try {
+            // Defensive cleanup sebelum reset tabel
+            if (trackerTable != null && trackerTable.isEditing()) {
+                trackerTable.getCellEditor().stopCellEditing();
+                trackerTable.clearSelection();
             }
+
+            tableModel.setRowCount(0); 
+            habitList = habitFacade.getHabits();
+            
+            // Populate Habits
+            int no = 1;
+            for (Habit h : habitList) {
+                Object[] row = new Object[10];
+                row[0] = no++;
+                row[1] = h.getName();
+                for (int i = 0; i < 7; i++) {
+                    row[i + 2] = habitFacade.getHabitStatus(h.getId(), weekStart.plusDays(i));
+                }
+                row[9] = ""; 
+                tableModel.addRow(row);
+            }
+
+            // Populate Mood
+            Object[] moodRow = new Object[10];
+            moodRow[0] = "";
+            moodRow[1] = "Daily Mood"; 
+            
+            for (int i = 0; i < 7; i++) {
+                LocalDate d = weekStart.plusDays(i);
+                Mood m = moodFacade.getMood(d);
+                if (m != null && m.getMoodValue() >= 1 && m.getMoodValue() <= 5) {
+                    moodRow[i+2] = MOOD_OPTIONS[m.getMoodValue()];
+                } else {
+                    moodRow[i+2] = ""; 
+                }
+            }
+            moodRow[9] = "";
+            tableModel.addRow(moodRow);
+            
+            updateLogView(); 
+
+        } finally {
+            isLoading = false; 
         }
-        moodRow[9] = "";
-        tableModel.addRow(moodRow);
-        
-        updateLogView();
     }
 }
